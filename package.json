@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "hapi": "^16.6.0",
     "node-ssdp": "^3.2.1",
