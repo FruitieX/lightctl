@@ -58,8 +58,14 @@ const onPreHandler = (req, reply) => {
       // Scene changed for group
       const [ result, username, groupId ] = match;
 
-      //console.log(`Group ${groupId} scene changed to: ${req.payload.scene}`);
-      storeSceneId(req.payload.scene, groupId, username);
+      console.log(`scene-spy: Group ${groupId} scene changed to: ${req.payload.scene}`);
+
+      if (groupId !== 0) {
+        storeSceneId(req.payload.scene, groupId, username);
+      }
+
+      // Any scene change results in group 0 (all lights) scene getting set!
+      storeSceneId(req.payload.scene, 0, username);
     } else if (match = req.path.match(lightStateRegex)) {
       // Light state changed, reset stored scene id to "null"
       const [ result, username, lightId ] = match;
@@ -70,8 +76,11 @@ const onPreHandler = (req, reply) => {
         groups[groupId].lights.includes(lightId)
       );
 
-      //console.log(`Light ${lightId} state changed, delta: ${JSON.stringify(req.payload)}`);
-      storeSceneId(undefined, groupId, username);
+      console.log(`scene-spy: Light ${lightId} state changed, scene reset for group ${groupId}`);
+
+      if (groupId !== 0) {
+        storeSceneId(undefined, groupId, username);
+      }
 
       // Any light state change results in group 0 (all lights) scene getting reset!
       storeSceneId(undefined, 0, username);
