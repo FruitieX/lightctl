@@ -1,5 +1,5 @@
 const Hapi = require('hapi');
-const request = require('request');
+const request = require('request-promise-native');
 
 require('dotenv').config();
 
@@ -15,31 +15,22 @@ process.env.BRIDGE_ID = [
 const server = new Hapi.Server();
 server.connection({ port: process.env.FORWARDER_PORT });
 
-const doForward = (req, cb) =>
-  request(
-    {
-      url: `http://${process.env.HUE_IP}${req.url.path}`,
-      method: req.method,
-      headers: req.headers,
-      body: req.payload && JSON.stringify(req.payload),
-    },
-    cb,
-  );
-
 // "Catch-all" route
 server.route({
   method: '*',
   path: '/{p*}',
-  handler: (req, reply) => {
-    //console.log(`Forwarding: ${req.method} ${req.url.path}`);
+  handler: async (req, reply) => {
+    console.log(`Forwarding: ${req.method} ${req.url.path}`);
 
-    doForward(req, (err, hueRes) => {
-      reply(
-        hueRes.headers['content-type'] === 'application/json'
-        ? JSON.parse(hueRes.body)
-        : hueRes.body,
-      );
+    const response = await request({
+      url: `http://${process.env.HUE_IP}${req.url.path}`,
+      method: req.method,
+      headers: req.headers,
+      body: req.payload || undefined,
+      json: true,
     });
+
+    reply(response);
   }
 });
 

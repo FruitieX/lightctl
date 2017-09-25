@@ -6,20 +6,9 @@
  * fields related to bridge ID, IP address, name.
  */
 
-const request = require('request');
+const request = require('request-promise-native');
 
-const doForward = (req, cb) =>
-  request(
-    {
-      url: `http://${process.env.HUE_IP}${req.url.path}`,
-      method: req.method,
-      headers: req.headers,
-      body: req.payload && JSON.stringify(req.payload),
-    },
-    cb,
-  );
-
-const modifyBody = body => {
+const modifyConfig = body => {
   let config = body.config ? body.config : body;
 
   if (config.mac) {
@@ -42,19 +31,18 @@ exports.register = function (server, options, next) {
   server.route([
     {
       method: 'GET',
-      path: '/api/{username}/config',
-      handler: (req, reply) =>
-        doForward(req, (err, hueRes) =>
-          reply(modifyBody(JSON.parse(hueRes.body))),
-        ),
-    },
-    {
-      method: 'GET',
-      path: '/api/{username}',
-      handler: (req, reply) =>
-        doForward(req, (err, hueRes) =>
-          reply(modifyBody(JSON.parse(hueRes.body))),
-        ),
+      path: '/api/{username}/{config?}',
+      handler: async (req, reply) => {
+        const response = await request({
+          url: `http://${process.env.HUE_IP}${req.url.path}`,
+          method: req.method,
+          headers: req.headers,
+          body: req.payload || undefined,
+          json: true,
+        });
+
+        reply(modifyConfig(response));
+      }
     }
   ]);
 
