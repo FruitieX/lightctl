@@ -5,6 +5,7 @@
   "dependencies": {
     "dotenv": "^4.0.0",
     "hapi": "^16.6.0",
+    "nes": "^6.4.3",
     "node-ssdp": "^3.2.1",
     "request": "^2.82.0",
     "request-promise-native": "^1.0.5"

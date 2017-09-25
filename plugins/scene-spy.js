@@ -40,7 +40,8 @@ const request = require('request-promise-native');
 const groupActionRegex = /\/api\/([\w-]+)\/groups\/(\d+)\/action/;
 const lightStateRegex = /\/api\/([\w-]+)\/lights\/(\d+)\/state/;
 
-let sensorForGroup = {};
+const sensorForGroup = {};
+exports.sensorForGroup = sensorForGroup;
 let groups = {};
 
 const storeSceneId = (sceneId, groupId, username) =>

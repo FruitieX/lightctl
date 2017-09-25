@@ -39,10 +39,15 @@ server.register(
   [
     require('./plugins/ssdp-discovery'),
     require('./plugins/config-spoofer'),
+    require('./plugins/ws-server'),
     {
       register: require('./plugins/scene-spy'),
-      options: { groups: [ 0, 1 ] }
-    }
+      options: { groups: [ 0, 1 ] },
+    },
+    {
+      register: require('./plugins/scene-spy-ws'),
+      options: { groups: [ 0 ] },
+    },
   ], (err) => {
     if (err) {
       console.error('Failed to load a plugin:', err);
