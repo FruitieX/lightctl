@@ -1,4 +1,3 @@
-const http = require('http');
 const Hapi = require('hapi');
 const request = require('request');
 
@@ -51,18 +50,18 @@ server.register(
     require('./plugins/config-spoofer'),
     {
       register: require('./plugins/scene-spy'),
-      options: { groupId: 0 }
+      options: { groups: [ 0, 1 ] }
     }
   ], (err) => {
     if (err) {
       console.error('Failed to load a plugin:', err);
     }
+
+    server.start(err => {
+      if (err) {
+        throw err;
+      }
+      console.log(`Server running at: ${server.info.uri}`);
+    });
   }
 );
-
-server.start(err => {
-  if (err) {
-    throw err;
-  }
-  console.log(`Server running at: ${server.info.uri}`);
-});

@@ -37,6 +37,12 @@ Setup
 
    # This probably doesn't matter, as long as it's unique in your setup
    FORWARDER_MAC=de:ad:be:ef:13:37
+
+   # Some plugins (such as scene-spy) may require a Hue username to
+   # e.g. perform actions right at server startup.
+   # You can generate a new username using:
+   # `http POST <hue-ip>/api devicetype=hue-forwarder#scene-spy`
+   USERNAME=<any whitelisted username>
    ```
 
    NOTE: If you already run something at port 80 (standard HTTP port) you will
