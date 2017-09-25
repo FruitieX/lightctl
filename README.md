@@ -39,25 +39,25 @@ Setup
    FORWARDER_MAC=de:ad:be:ef:13:37
    ```
 
-  NOTE: If you already run something at port 80 (standard HTTP port) you will
-  likely need to set up reverse proxying. I found the following nginx config
-  to work well:
+   NOTE: If you already run something at port 80 (standard HTTP port) you will
+   likely need to set up reverse proxying. I found the following nginx config
+   to work well:
 
-  ```
-  location /api {
-    proxy_pass http://127.0.0.1:5678;
-    proxy_redirect off;
-  }
+   ```
+   location /api {
+     proxy_pass http://127.0.0.1:5678;
+     proxy_redirect off;
+   }
 
-  location /description.xml {
-    proxy_pass http://127.0.0.1:5678;
-    proxy_redirect off;
-  }
-  ```
+   location /description.xml {
+     proxy_pass http://127.0.0.1:5678;
+     proxy_redirect off;
+   }
+   ```
 
-  If not, just set `FORWARDER_PORT` to 80 and use setcap to allow node processes to bind
-  ports < 1024 without root privileges:
-  https://gist.github.com/firstdoit/6389682
+   If not, just set `FORWARDER_PORT` to 80 and use setcap to allow node processes to bind
+   ports < 1024 without root privileges:
+   https://gist.github.com/firstdoit/6389682
 
 3. Run hue-forwarder with `npm start`
 4. Now you should be able to find a new Hue bridge in the Philips Hue app,
