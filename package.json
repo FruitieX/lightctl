@@ -3,6 +3,7 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "dotenv": "^4.0.0",
     "hapi": "^16.6.0",
     "node-ssdp": "^3.2.1",
     "request": "^2.82.0"

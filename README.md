@@ -17,7 +17,27 @@ Setup
 -----
 
 1. Clone the repo, run `npm install`
-2. Edit the config object in `index.js` to match your setup
+2. Create a file with name `.env` in the root of the repository.
+   Add the following lines to it, and edit them to match your setup:
+
+   ```
+   # IP address of the target Hue bridge
+   HUE_IP=192.168.1.111
+
+   # Name of the forwarded bridge
+   BRIDGE_NAME="Philips Hue (Forwarded)"
+
+   # FORWARDER_PORT is the listen port of this service.
+   # Hue apps will only try port 80, so this service has to be reachable
+   # on port 80 either directly or through a reverse proxy.
+   FORWARDER_PORT=5678
+
+   # Spoof all IP addresses with FORWARDER_IP, should match IP of this service
+   FORWARDER_IP=192.168.1.101
+
+   # This probably doesn't matter, as long as it's unique in your setup
+   FORWARDER_MAC=de:ad:be:ef:13:37
+   ```
 
   NOTE: If you already run something at port 80 (standard HTTP port) you will
   likely need to set up reverse proxying. I found the following nginx config
@@ -35,13 +55,13 @@ Setup
   }
   ```
 
-  If not, just set FORWARDER_PORT to 80 and use setcap to allow node processes to bind
+  If not, just set `FORWARDER_PORT` to 80 and use setcap to allow node processes to bind
   ports < 1024 without root privileges:
   https://gist.github.com/firstdoit/6389682
 
 3. Run hue-forwarder with `npm start`
 4. Now you should be able to find a new Hue bridge in the Philips Hue app,
-   named according to what you set as BRIDGE_NAME
+   named according to what you set as `BRIDGE_NAME`
 5. With the hue-forwarder bridge selected in the Philips Hue app, as you use
    the app you should see similar output in the hue-forwarder console:
 
