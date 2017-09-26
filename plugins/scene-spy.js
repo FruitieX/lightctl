@@ -2,8 +2,12 @@
  * scene-spy
  *
  * Store id of currently active scene in a Hue bridge sensor.
+ * Additionally, we poll for the currently active scene and store it in
+ * sceneForGroup. Other plugins can import sceneForGroup and perform logic
+ * based on the current active scene.
+ *
  * Any scene change through the API will trigger this function.
- * Any light state changes will reset the value to "null".
+ * Any light state changes will reset the scene value to "null".
  *
  * SETUP:
  *
@@ -14,7 +18,7 @@
  *   [
  *     {
  *       register: require('./plugins/scene-spy'),
- *       options: { groups: [ 0, 1 ] }
+ *       options: { groups: [ 0, 1 ], pollDelay: 100, duplicateSceneChange: true }
  *     },
  * ...
  * ```
@@ -40,16 +44,31 @@ const request = require('request-promise-native');
 const groupActionRegex = /\/api\/([\w-]+)\/groups\/(\d+)\/action/;
 const lightStateRegex = /\/api\/([\w-]+)\/lights\/(\d+)\/state/;
 
-const sensorForGroup = {};
-exports.sensorForGroup = sensorForGroup;
+const sceneSensorForGroup = {};
+exports.sceneSensorForGroup = sceneSensorForGroup;
+
+const sceneForGroup = {};
+exports.sceneForGroup = sceneForGroup;
+
 let groups = {};
 
-const storeSceneId = (sceneId, groupId, username) =>
+// TODO: only run this upon changes
+const storeSceneId = (sceneId, groupId, username, override) => {
   request({
-    url: `http://${process.env.HUE_IP}/api/${username}/sensors/${sensorForGroup[groupId]}`,
+    url: `http://${process.env.HUE_IP}/api/${username}/sensors/${sceneSensorForGroup[groupId]}`,
     method: 'PUT',
     body: JSON.stringify({ name: sceneId || 'null' }),
   });
+
+  // Provide an option to immediately override the active scene in sceneForGroup.
+  // Useful when a scene plugin wants to "silently" activate their scene,
+  // and not get initial light states forcibly recalled by duplicateSceneChange
+  if (override) {
+    sceneForGroup[groupId] = sceneId;
+  }
+};
+
+exports.storeSceneId = storeSceneId;
 
 const onPreHandler = (req, reply) => {
   let match;
@@ -89,6 +108,52 @@ const onPreHandler = (req, reply) => {
   }
 
   return reply.continue();
+};
+
+const delay = ms =>
+  new Promise((resolve, reject) =>
+    setTimeout(resolve, ms)
+  );
+
+const startPolling = async (server, options) => {
+  while (true) {
+    const sensors = await request({
+      url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors`,
+      json: true,
+    });
+
+    for (let groupId in options.groups) {
+      //console.log('poll took', new Date().getTime() - time, 'ms');
+      const sceneId = sensors[sceneSensorForGroup[groupId]].name;
+
+      if (sceneId !== sceneForGroup[groupId]) {
+        // Store the new sceneId
+        sceneForGroup[groupId] = sceneId;
+
+        console.log(`scene-spy: Group ${groupId} scene change detected! (${sceneId})`);
+
+        // Work around a race-condition issue where another plugin relying
+        // on our `sceneForGroup` state might in some cases overrule the light
+        // state changes initiated by a recent scene recall.
+        //
+        // The "fix" here is to re-send the scene recall to the bridge whenever
+        // we notice the active scene has just changed.
+        if (options.duplicateSceneChange && sceneId !== 'null') {
+          console.log(`scene-spy: Re-sending scene change to ${sceneId}`);
+          await request({
+            url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups/${groupId}/action`,
+            method: 'PUT',
+            body: {
+              scene: sceneId
+            },
+            json: true,
+          });
+        }
+      }
+    }
+
+    await delay(options.pollDelay || 100);
+  }
 };
 
 exports.register = async function (server, options, next) {
@@ -135,10 +200,15 @@ exports.register = async function (server, options, next) {
       console.log(`scene-spy: Created scene sensor (ID ${sensorId}) for group ${groupId}`);
     }
 
-    sensorForGroup[groupId] = sensorId;
+    sceneSensorForGroup[groupId] = sensorId;
   };
 
-  console.log(`scene-spy: Detected {groupId:sceneSensor} pairs: ${JSON.stringify(sensorForGroup)}`);
+  console.log(`scene-spy: Detected {groupId:sceneSensor} pairs: ${JSON.stringify(sceneSensorForGroup)}`);
+
+  server.on('start', () => {
+    console.log(`scene-spy: Starting polling Scene Sensors...`);
+    startPolling(server, options);
+  });
 
   next();
 };

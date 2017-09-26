@@ -42,11 +42,7 @@ server.register(
     require('./plugins/ws-server'),
     {
       register: require('./plugins/scene-spy'),
-      options: { groups: [ 0, 1 ] },
-    },
-    {
-      register: require('./plugins/scene-spy-ws'),
-      options: { groups: [ 0 ] },
+      options: { groups: [ 0, 1 ], pollDelay: 100, duplicateSceneChange: true },
     },
   ], (err) => {
     if (err) {
