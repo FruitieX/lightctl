@@ -51,17 +51,43 @@ const groupActionRegex = /\/api\/([\w-]+)\/groups\/(\d+)\/action/;
 const lightStateRegex = /\/api\/([\w-]+)\/lights\/(\d+)\/state/;
 
 const sceneSensorForGroup = {};
-exports.sceneSensorForGroup = sceneSensorForGroup;
-
 const sceneForGroup = {};
-exports.sceneForGroup = sceneForGroup;
-const sceneEvents = new EventEmitter();
-exports.sceneEvents = sceneEvents;
-
-const dynamicScenes = [];
-exports.dynamicScenes = dynamicScenes;
 
 let groups = {};
+
+// Contain IDs of registered scenes that should be excempt from recall duplication
+const registeredScenes = {};
+
+exports.registerScene = async sceneId => {
+  if (registeredScenes[sceneId]) {
+    throw 'Scene already registered!';
+  }
+
+  // Fetch scene from bridge
+  scene = await request({
+    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/scenes/${sceneId}`,
+    json: true,
+  });
+
+  registeredScenes[sceneId] = {
+    ...scene,
+    events: new EventEmitter(),
+  };
+
+  return registeredScenes[sceneId];
+};
+
+const emitSceneChange = ({ sceneId, prevSceneId, groupId }) => {
+  const scene = registeredScenes[sceneId];
+  const prevScene = registeredScenes[prevSceneId];
+
+  if (scene) {
+    scene.events.emit('activate', { sceneId, prevSceneId, groupId });
+  }
+  if (prevScene && prevScene !== scene) {
+    prevScene.events.emit('deactivate', { sceneId, prevSceneId, groupId });
+  }
+};
 
 // TODO: only run this upon changes
 const storeSceneId = (sceneId, groupId, username, override) => {
@@ -75,9 +101,8 @@ const storeSceneId = (sceneId, groupId, username, override) => {
   // Useful when a scene plugin wants to "silently" activate their scene,
   // and not get initial light states forcibly recalled by duplicateSceneChange
   if (override) {
+    emitSceneChange({ groupId, sceneId, prevSceneId: sceneForGroup[groupId] });
     sceneForGroup[groupId] = sceneId;
-
-    sceneEvents.emit('sceneChange', { groupId, sceneId });
   }
 };
 
@@ -142,11 +167,11 @@ const startPolling = async (server, options) => {
 
       // Scene Sensor has changed since previous poll
       if (sceneId !== 'handled') {
+        // Notify registered scenes
+        emitSceneChange({ groupId, sceneId, prevSceneId: sceneForGroup[groupId] });
+
         // Store the new sceneId
         sceneForGroup[groupId] = sceneId;
-
-        // Notify listeners
-        sceneEvents.emit('sceneChange', { groupId, sceneId });
 
         console.log(`scene-spy: Group ${groupId} scene activation detected! (${sceneId})`);
 
@@ -158,7 +183,7 @@ const startPolling = async (server, options) => {
         // we notice the active scene has just changed.
 
         // TODO: handle 'off' scene (turn off group)
-        if (options.duplicateSceneChange && sceneId !== 'null' && !dynamicScenes.includes(sceneId)) {
+        if (options.duplicateSceneChange && sceneId !== 'null' && !registeredScenes[sceneId]) {
           console.log(`scene-spy: Re-sending scene change to ${sceneId}`);
           await request({
             url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups/${groupId}/action`,
@@ -199,7 +224,7 @@ exports.register = async function (server, options, next) {
     json: true,
   });
 
-  // Discover existing sensors in bridge
+  // Discover existing sensors
   const sensors = await request({
     url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors`,
     json: true,

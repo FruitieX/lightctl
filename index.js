@@ -44,6 +44,14 @@ server.register(
       register: require('./plugins/scene-spy'),
       options: { groups: [ 0, 1 ], pollDelay: 100, duplicateSceneChange: true },
     },
+    {
+      register: require('./plugins/scenes/sunlight'),
+      options: { sceneId: 'NFdJj2xpbz9mivi' },
+    },
+    {
+      register: require('./plugins/scenes/party'),
+      options: { sceneId: 'gQ0XG0Jf0KaBFPY' },
+    },
   ], (err) => {
     if (err) {
       console.error('Failed to load a plugin:', err);
