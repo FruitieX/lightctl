@@ -37,8 +37,14 @@
  * }
  * ```
  *
+ * NOTE: Special scenes include:
+ *
+ * - "null": No scene active (light states changed manually since last scene recall)
+ * - "off": Can be reported by dimmer switches to signify turning group off
+ *
  */
 
+const EventEmitter = require('events').EventEmitter;
 const request = require('request-promise-native');
 
 const groupActionRegex = /\/api\/([\w-]+)\/groups\/(\d+)\/action/;
@@ -49,6 +55,11 @@ exports.sceneSensorForGroup = sceneSensorForGroup;
 
 const sceneForGroup = {};
 exports.sceneForGroup = sceneForGroup;
+const sceneEvents = new EventEmitter();
+exports.sceneEvents = sceneEvents;
+
+const dynamicScenes = [];
+exports.dynamicScenes = dynamicScenes;
 
 let groups = {};
 
@@ -65,6 +76,8 @@ const storeSceneId = (sceneId, groupId, username, override) => {
   // and not get initial light states forcibly recalled by duplicateSceneChange
   if (override) {
     sceneForGroup[groupId] = sceneId;
+
+    sceneEvents.emit('sceneChange', { groupId, sceneId });
   }
 };
 
@@ -78,7 +91,7 @@ const onPreHandler = (req, reply) => {
       // Scene changed for group
       const [ result, username, groupId ] = match;
 
-      console.log(`scene-spy: Group ${groupId} scene changed to: ${req.payload.scene}`);
+      //console.log(`scene-spy: Group ${groupId} scene changed to: ${req.payload.scene}`);
 
       if (groupId !== 0) {
         storeSceneId(req.payload.scene, groupId, username);
@@ -96,7 +109,7 @@ const onPreHandler = (req, reply) => {
         groups[groupId].lights.includes(lightId)
       );
 
-      console.log(`scene-spy: Light ${lightId} state changed, scene reset for group ${groupId}`);
+      //console.log(`scene-spy: Light ${lightId} state changed, scene reset for group ${groupId}`);
 
       if (groupId !== 0) {
         storeSceneId(undefined, groupId, username);
@@ -124,13 +137,18 @@ const startPolling = async (server, options) => {
 
     for (let groupId in options.groups) {
       //console.log('poll took', new Date().getTime() - time, 'ms');
-      const sceneId = sensors[sceneSensorForGroup[groupId]].name;
+      const sensorId = sceneSensorForGroup[groupId];
+      const sceneId = sensors[sensorId].name;
 
-      if (sceneId !== sceneForGroup[groupId]) {
+      // Scene Sensor has changed since previous poll
+      if (sceneId !== 'handled') {
         // Store the new sceneId
         sceneForGroup[groupId] = sceneId;
 
-        console.log(`scene-spy: Group ${groupId} scene change detected! (${sceneId})`);
+        // Notify listeners
+        sceneEvents.emit('sceneChange', { groupId, sceneId });
+
+        console.log(`scene-spy: Group ${groupId} scene activation detected! (${sceneId})`);
 
         // Work around a race-condition issue where another plugin relying
         // on our `sceneForGroup` state might in some cases overrule the light
@@ -138,7 +156,9 @@ const startPolling = async (server, options) => {
         //
         // The "fix" here is to re-send the scene recall to the bridge whenever
         // we notice the active scene has just changed.
-        if (options.duplicateSceneChange && sceneId !== 'null') {
+
+        // TODO: handle 'off' scene (turn off group)
+        if (options.duplicateSceneChange && sceneId !== 'null' && !dynamicScenes.includes(sceneId)) {
           console.log(`scene-spy: Re-sending scene change to ${sceneId}`);
           await request({
             url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups/${groupId}/action`,
@@ -149,6 +169,16 @@ const startPolling = async (server, options) => {
             json: true,
           });
         }
+
+        // Mark scene activation as handled
+        await request({
+          url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors/${sensorId}`,
+          method: 'PUT',
+          body: {
+            name: 'handled'
+          },
+          json: true,
+        });
       }
     }
 
