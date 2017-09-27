@@ -48,28 +48,21 @@ const day = {
 
 // Missing hours will use night settings
 const timeMap = {
-  0: night,
-  1: night,
-  2: night,
-  3: night,
-  4: night,
-  5: night,
-  6: night,
   7: {
     ct: kelvinToMired(2200),
-    bri: 0.3, // 10% of bri value for each light in the bridge scene
+    bri: 0.3,
   },
   8: {
     ct: kelvinToMired(2500),
-    bri: 0.5, // 10% of bri value for each light in the bridge scene
+    bri: 0.5,
   },
   9: {
     ct: kelvinToMired(3000),
-    bri: 0.7, // 10% of bri value for each light in the bridge scene
+    bri: 0.7,
   },
   10: {
-    ct: kelvinToMired(4000),
-    bri: 0.9, // 10% of bri value for each light in the bridge scene
+    ct: kelvinToMired(3500),
+    bri: 0.9,
   },
   11: day,
   12: day,
@@ -78,26 +71,29 @@ const timeMap = {
   15: day,
   16: day,
   17: day,
-  18: day,
+  18: {
+    ct: kelvinToMired(3500),
+    bri: 0.9,
+  },
   19: {
-    ct: kelvinToMired(4000),
-    bri: 0.9, // 10% of bri value for each light in the bridge scene
+    ct: kelvinToMired(3000),
+    bri: 0.8,
   },
   20: {
-    ct: kelvinToMired(3000),
-    bri: 0.75, // 10% of bri value for each light in the bridge scene
+    ct: kelvinToMired(2500),
+    bri: 0.75,
   },
   21: {
-    ct: kelvinToMired(2000),
-    bri: 0.65, // 10% of bri value for each light in the bridge scene
+    ct: kelvinToMired(2200),
+    bri: 0.65,
   },
   22: {
     ct: kelvinToMired(2000),
-    bri: 0.3, // 10% of bri value for each light in the bridge scene
+    bri: 0.5,
   },
   23: {
     ct: kelvinToMired(2000),
-    bri: 0.2, // 10% of bri value for each light in the bridge scene
+    bri: 0.3,
   }
 };
 
@@ -105,9 +101,19 @@ const setColors = async initial => {
   const requests = [];
 
   const hour = new Date().getHours();
+  const prevSettings = timeMap[hour] || night;
+  const nextSettings = timeMap[(hour + 1) % 24] || night;
+
+  const weight = new Date().getMinutes() / 60;
+
+  // Interpolate between prevSettings and nextSettings
+  const timeSettings = {
+    ct: (1 - weight) * prevSettings.ct + weight * nextSettings.ct,
+    bri: (1 - weight) * prevSettings.bri + weight * nextSettings.bri,
+  };
 
   scene.lights.forEach(lightId => {
-    const lightState = timeMap[hour];
+    const lightState = timeSettings;
     const bri = lightState.bri * scene.lightstates[lightId].bri;
 
     const body = {
@@ -147,7 +153,7 @@ exports.register = async function (server, options, next) {
       colorTimeout = null;
 
       await setColors(true);
-      colorTimeout = setTimeout(loop, config.delayMs || 500);
+      colorTimeout = setTimeout(loop, config.delayMs || (1000 * 10));
 
       console.log('sunlight activated');
     });
