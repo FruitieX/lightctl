@@ -25,7 +25,6 @@ server.route({
     const response = await request({
       url: `http://${process.env.HUE_IP}${req.url.path}`,
       method: req.method,
-      headers: req.headers,
       body: req.payload || undefined,
       json: true,
     });
