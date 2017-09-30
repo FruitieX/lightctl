@@ -84,7 +84,7 @@ const timeMap = {
     bri: 0.75,
   },
   21: {
-    ct: kelvinToMired(2200),
+    ct: kelvinToMired(2000),
     bri: 0.65,
   },
   22: {
