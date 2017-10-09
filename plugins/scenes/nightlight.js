@@ -1,0 +1,177 @@
+/*
+ * nightlight
+ *
+ * When `options.sceneId` is active, activates nightlights by fading out
+ * lights slowly to a very warm color, then turning off all lights except
+ * ones with "on=true" in the bridge scene
+ *
+ * DEPENDENCIES:
+ *
+ * - scene-spy
+ *
+ * SETUP:
+ *
+ * - Create a nightlight scene through the Hue app with desired lights left on
+ *   at desired brightness, note down the sceneId
+ *
+ * - Register dependencies and plugin in index.js:
+ *
+ * ```
+ * server.register(
+ *   [
+ *     {
+ *       register: require('./plugins/scene-spy'),
+ *       options: { groups: [ 0, 1 ] }
+ *     },
+ *     {
+ *       register: require('./plugins/scenes/nightlight'),
+ *       options: { sceneId: '<id of nightlight Hue scene>' }
+ *     ...
+ *   ]
+ * ...
+ * ```
+ */
+
+const shuffle = require('lodash').shuffle;
+const request = require('request-promise-native');
+const registerScene = require('../scene-spy').registerScene;
+
+let scene = null;
+let offTimeout = null;
+let config = null;
+
+let nextIndex = 0;
+let lightsToTurnOff = [];
+
+const delay = ms =>
+  new Promise((resolve, reject) =>
+    offTimeout = setTimeout(resolve, ms)
+  );
+
+const notifyActivation = async () => {
+  const lights = await request({
+      url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights`,
+      method: 'GET',
+      json: true,
+    })
+
+  let multiplier = 1;
+  let maxBrightness = 0;
+
+  Object.entries(lights).forEach(([lightId, light]) => {
+    if (light.state.bri > maxBrightness) {
+      maxBrightness = light.state.bri;
+    }
+  });
+
+  if (maxBrightness > 128) {
+    multiplier = -2;
+  }
+
+  await request({
+      url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups/${config.groupId || 0}/action`,
+      method: 'PUT',
+      body: { bri_inc: 50 * multiplier, transitiontime: 2 },
+      json: true,
+    })
+
+  await(delay(300));
+
+  await request({
+      url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups/${config.groupId || 0}/action`,
+      method: 'PUT',
+      body: { bri_inc: -50 * multiplier, transitiontime: 2 },
+      json: true,
+    });
+
+  return await(delay(1000));
+}
+
+
+const fadeLights = () =>
+  scene.lights.forEach(lightId =>
+    request({
+      url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights/${lightId}/state`,
+      method: 'PUT',
+      body: {
+        bri: scene.lightstates[lightId].on ? scene.lightstates[lightId].bri : 0,
+        xy: config.xy || [0.6, 0.4],
+        transitiontime: Math.round((config.transitionMs || 60000) / 100),
+      },
+      json: true,
+    })
+  );
+
+// Lights fade off with intentional "popcorn" effect
+const lightsOff = () => {
+  const lightId = lightsToTurnOff[nextIndex++];
+  console.log(`Turning off light ${lightId}`);
+
+  // Apparently setting transitiontime here makes the light turn off much
+  // faster than without? So leaving it out for a smoother fade
+  request({
+    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights/${lightId}/state`,
+    method: 'PUT',
+    body: {
+      on: false
+    },
+    json: true,
+  });
+
+  if (nextIndex >= lightsToTurnOff.length) {
+    console.log('All lights turned off.');
+    return;
+  }
+
+  const jitter = (config.minOffJitter || 500) + Math.random() * (config.offJitter || 1500);
+
+  offTimeout = setTimeout(lightsOff, jitter);
+}
+
+exports.register = async function (server, options, next) {
+  server.dependency(['scene-spy']);
+  config = options;
+
+  try {
+    scene = await registerScene(config.sceneId);
+
+    scene.events.on('activate', async () => {
+      if (!offTimeout) {
+        await notifyActivation();
+      } else {
+        clearTimeout(offTimeout);
+        offTimeout = null;
+      }
+
+      fadeLights();
+
+      nextIndex = 0;
+      lightsToTurnOff = [];
+      shuffle(Object.entries(scene.lightstates)).forEach(([lightId, state]) => {
+        if (!state.on) {
+          lightsToTurnOff.push(lightId);
+        }
+      });
+
+      offTimeout = setTimeout(lightsOff, Math.round(config.transitionMs || 60000));
+
+      console.log('nightlight activated: fading out lights');
+    });
+
+    scene.events.on('deactivate', () => {
+      clearTimeout(offTimeout);
+      offTimeout = null;
+
+      console.log('nightlight deactivated');
+    });
+
+    next();
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.register.attributes = {
+  name: 'scenes/nightlight',
+  version: '1.0.0'
+};
