@@ -38,7 +38,7 @@ let config = null;
 const kelvinToMired = kelvin => 1000000 / kelvin;
 const night = {
   ct: kelvinToMired(2000),
-  bri: 0.1, // 10% of bri value for each light in the bridge scene
+  bri: 0.25, // 25% of bri value for each light in the bridge scene
 };
 
 const day = {

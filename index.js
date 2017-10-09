@@ -41,15 +41,35 @@ server.register(
     require('./plugins/ws-server'),
     {
       register: require('./plugins/scene-spy'),
-      options: { groups: [ 0, 1 ], pollDelay: 100, duplicateSceneChange: true },
+      options: { groups: [ 0, 1 ], pollDelay: 50, duplicateSceneChange: true },
     },
     {
       register: require('./plugins/scenes/sunlight'),
       options: { sceneId: 'NFdJj2xpbz9mivi' },
     },
     {
+      register: require('./plugins/scenes/nightlight'),
+      options: { sceneId: 'DNzH2x2TBhCfOzo' },
+    },
+    {
       register: require('./plugins/scenes/party'),
       options: { sceneId: 'gQ0XG0Jf0KaBFPY' },
+    },
+    {
+      register: require('./plugins/scenes/colorloop'),
+      options: { sceneId: 'Qx9hz1m1zB4BX1a', delayMs: 5000 },
+    },
+    {
+      register: require('./plugins/scenes/colorloop'),
+      options: { sceneId: 'AumuKhjg5hJyJad', delayMs: 500 },
+    },
+    {
+      register: require('./plugins/scenes/colorloop'),
+      options: { sceneId: '8ZXrWIUytImoY7n' },
+    },
+    {
+      register: require('./plugins/scenes/colorloop'),
+      options: { sceneId: '1Y-uBXA0TK6gwnU' },
     },
   ], (err) => {
     if (err) {
