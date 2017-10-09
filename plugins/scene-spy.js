@@ -167,43 +167,47 @@ const startPolling = async (server, options) => {
 
       // Scene Sensor has changed since previous poll
       if (sceneId !== 'handled') {
-        // Notify registered scenes
-        emitSceneChange({ groupId, sceneId, prevSceneId: sceneForGroup[groupId] });
+        try {
+          // Notify registered scenes
+          emitSceneChange({ groupId, sceneId, prevSceneId: sceneForGroup[groupId] });
 
-        // Store the new sceneId
-        sceneForGroup[groupId] = sceneId;
+          // Store the new sceneId
+          sceneForGroup[groupId] = sceneId;
 
-        console.log(`scene-spy: Group ${groupId} scene activation detected! (${sceneId})`);
+          console.log(`scene-spy: Group ${groupId} scene activation detected! (${sceneId})`);
 
-        // Work around a race-condition issue where another plugin relying
-        // on our `sceneForGroup` state might in some cases overrule the light
-        // state changes initiated by a recent scene recall.
-        //
-        // The "fix" here is to re-send the scene recall to the bridge whenever
-        // we notice the active scene has just changed.
+          // Work around a race-condition issue where another plugin relying
+          // on our `sceneForGroup` state might in some cases overrule the light
+          // state changes initiated by a recent scene recall.
+          //
+          // The "fix" here is to re-send the scene recall to the bridge whenever
+          // we notice the active scene has just changed.
 
-        // TODO: handle 'off' scene (turn off group)
-        if (options.duplicateSceneChange && sceneId !== 'null' && !registeredScenes[sceneId]) {
-          console.log(`scene-spy: Re-sending scene change to ${sceneId}`);
+          // TODO: handle 'off' scene (turn off group)
+          if (options.duplicateSceneChange && sceneId !== 'null' && !registeredScenes[sceneId]) {
+            console.log(`scene-spy: Re-sending scene change to ${sceneId}`);
+            await request({
+              url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups/${groupId}/action`,
+              method: 'PUT',
+              body: {
+                scene: sceneId
+              },
+              json: true,
+            });
+          }
+
+          // Mark scene activation as handled
           await request({
-            url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups/${groupId}/action`,
+            url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors/${sensorId}`,
             method: 'PUT',
             body: {
-              scene: sceneId
+              name: 'handled'
             },
             json: true,
           });
+        } catch(e) {
+          console.log('Error while handling scene change:', e);
         }
-
-        // Mark scene activation as handled
-        await request({
-          url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors/${sensorId}`,
-          method: 'PUT',
-          body: {
-            name: 'handled'
-          },
-          json: true,
-        });
       }
     }
 
