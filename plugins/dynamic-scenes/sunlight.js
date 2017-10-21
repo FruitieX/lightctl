@@ -24,7 +24,6 @@
  * ```
  */
 
-const request = require('request-promise-native');
 const registerScene = require('../dynamic-scenes').registerScene;
 
 let scene = null;
@@ -119,15 +118,7 @@ const setColors = async initial => {
       transitiontime: initial ? undefined : 600,
     };
 
-    requests.push(
-      request({
-        url: `http://${process.env.HUE_IP}/api/${process.env
-          .USERNAME}/lights/${lightId}/state`,
-        method: 'PUT',
-        body,
-        json: true,
-      }),
-    );
+    requests.push(scene.setLight(lightId, body));
   });
 
   return await Promise.all(requests);

@@ -1,13 +1,12 @@
 /*
  * dynamic-scenes
  *
- * Store id of currently active scene in a Hue bridge sensor.
- * Additionally, we poll for the currently active scene and store it in
- * sceneForGroup. Other plugins can import sceneForGroup and perform logic
- * based on the current active scene.
+ * Allows registering scenes that can change light states dynamically.
+ * Manages active scene state with scene-spy, and only allows the currently
+ * scene to change light states.
  *
- * Any scene change through the API will trigger this function.
- * Any light state changes will reset the scene value to "null".
+ * TODO: Cache light states of inactive scenes so the up to date state can be
+ * recalled instantly.
  *
  * DEPENDENCIES:
  *
@@ -15,36 +14,17 @@
 
  * SETUP:
  *
- * - Register plugin in index.js:
+ * - Register plugin and dependencies in index.js:
  *
  * ```
  * server.register(
  *   [
  *     {
- *       register: require('./plugins/scene-spy'),
- *       options: { groups: [ 0, 1 ], pollDelay: 100, duplicateSceneChange: true }
+ *       register: require('./plugins/dynamic-scenes'),
+ *       options: { groups: [ 0, 1 ], duplicateSceneChange: true }
  *     },
  * ...
  * ```
- *
- * - If you want your Dimmer Switches to also sync the active scene, append the
- *   following to the actions array of each dimmer switch rule (replace
- *   ${SENSOR_ID} and ${SCENE_ID} with relevant values):
- *
- * ```
- * {
- *   "address": "/sensors/${SENSOR_ID}",
- *   "method": "PUT",
- *   "body": {
- *     "name": "${SCENE_ID}"
- *   }
- * }
- * ```
- *
- * NOTE: Special scenes include:
- *
- * - "null": No scene active (light states changed manually since last scene recall)
- * - "off": Can be reported by dimmer switches to signify turning group off
  *
  */
 
@@ -52,16 +32,36 @@ const EventEmitter = require('events').EventEmitter;
 const sceneChangeEmitter = require('./scene-spy').sceneChangeEmitter;
 const request = require('request-promise-native');
 
-const groupActionRegex = /\/api\/([\w-]+)\/groups\/(\d+)\/action/;
-const lightStateRegex = /\/api\/([\w-]+)\/lights\/(\d+)\/state/;
-
-const sceneSensorForGroup = {};
-const sceneForGroup = {};
-
 let groups = {};
 
-// Contain IDs of registered scenes that should be excempt from recall duplication
+// Contains IDs of registered scenes
 const registeredScenes = {};
+
+const setLight = sceneId => (lightId, body) => {
+  if (!registeredScenes[sceneId].active) return;
+
+  return request({
+    url: `http://${process.env.HUE_IP}/api/${process.env
+      .USERNAME}/lights/${lightId}/state`,
+    method: 'PUT',
+    body,
+    json: true,
+    timeout: 1000,
+  });
+};
+
+const setGroup = sceneId => (groupId, body) => {
+  if (!registeredScenes[sceneId].active) return;
+
+  return request({
+    url: `http://${process.env.HUE_IP}/api/${process.env
+      .USERNAME}/groups/${groupId}/action`,
+    method: 'PUT',
+    body,
+    json: true,
+    timeout: 1000,
+  });
+};
 
 exports.registerScene = async sceneId => {
   if (registeredScenes[sceneId]) {
@@ -78,6 +78,8 @@ exports.registerScene = async sceneId => {
   registeredScenes[sceneId] = {
     ...scene,
     events: new EventEmitter(),
+    setLight: setLight(sceneId),
+    setGroup: setGroup(sceneId),
   };
 
   return registeredScenes[sceneId];
@@ -91,9 +93,11 @@ const handleSceneActivation = async ({ sceneId, groupId }) => {
   const prevScene = registeredScenes[prevSceneId];
 
   if (prevScene && prevScene !== scene) {
+    prevScene.active = false;
     prevScene.events.emit('deactivate', { sceneId, prevSceneId, groupId });
   }
   if (scene) {
+    scene.active = true;
     scene.events.emit('activate', { sceneId, prevSceneId, groupId });
   } else {
     // No dynamic scene registered for sceneId
@@ -124,6 +128,9 @@ exports.register = async function(server, options, next) {
   if (!process.env.USERNAME) {
     return next('dynamic-scenes: USERNAME env var not supplied, aborting...');
   }
+  if (!process.env.HUE_IP) {
+    return next('dynamic-scenes: HUE_IP env var not supplied, aborting...');
+  }
 
   // Discover existing groups
   groups = await request({
@@ -131,14 +138,15 @@ exports.register = async function(server, options, next) {
     json: true,
   });
 
-  Object.keys(groups).forEach(groupId => {
-    groups[groupId].activeScene = null;
-  });
-
   groups = {
     ...groups,
-    '0': { activeScene: null },
+    '0': {},
   };
+
+  Object.entries(groups).forEach(([groupId, group]) => {
+    group.activeScene = null;
+    group.requests = [];
+  });
 
   sceneChangeEmitter.on('activate', handleSceneActivation);
   next();

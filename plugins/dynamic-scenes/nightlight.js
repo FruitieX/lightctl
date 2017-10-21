@@ -62,39 +62,24 @@ const notifyActivation = async () => {
     multiplier = -2;
   }
 
-  await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env
-      .USERNAME}/groups/${config.groupId || 0}/action`,
-    method: 'PUT',
-    body: { bri_inc: 50 * multiplier, transitiontime: 2 },
-    json: true,
+  await scene.setGroup(groupId, {
+    bri_inc: 50 * multiplier,
+    transitiontime: 2,
   });
-
   await delay(300);
-
-  await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env
-      .USERNAME}/groups/${config.groupId || 0}/action`,
-    method: 'PUT',
-    body: { bri_inc: -50 * multiplier, transitiontime: 2 },
-    json: true,
+  await scene.setGroup(groupId, {
+    bri_inc: -50 * multiplier,
+    transitiontime: 2,
   });
-
   return await delay(1000);
 };
 
 const fadeLights = () =>
   scene.lights.forEach(lightId =>
-    request({
-      url: `http://${process.env.HUE_IP}/api/${process.env
-        .USERNAME}/lights/${lightId}/state`,
-      method: 'PUT',
-      body: {
-        bri: scene.lightstates[lightId].on ? scene.lightstates[lightId].bri : 0,
-        xy: config.xy || [0.6, 0.4],
-        transitiontime: Math.round((config.transitionMs || 60000) / 100),
-      },
-      json: true,
+    scene.setLight(lightId, {
+      bri: scene.lightstates[lightId].on ? scene.lightstates[lightId].bri : 0,
+      xy: config.xy || [0.6, 0.4],
+      transitiontime: Math.round((config.transitionMs || 60000) / 100),
     }),
   );
 
@@ -105,15 +90,7 @@ const lightsOff = () => {
 
   // Apparently setting transitiontime here makes the light turn off much
   // faster than without? So leaving it out for a smoother fade
-  request({
-    url: `http://${process.env.HUE_IP}/api/${process.env
-      .USERNAME}/lights/${lightId}/state`,
-    method: 'PUT',
-    body: {
-      on: false,
-    },
-    json: true,
-  });
+  scene.setLight(lightId, { on: false });
 
   if (nextIndex >= lightsToTurnOff.length) {
     console.log('All lights turned off.');

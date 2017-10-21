@@ -55,31 +55,31 @@ server.register(
       options: { groups: [0, 1], duplicateSceneChange: true },
     },
     {
-      register: require('./plugins/scenes/sunlight'),
+      register: require('./plugins/dynamic-scenes/sunlight'),
       options: { sceneId: 'NFdJj2xpbz9mivi' },
     },
     {
-      register: require('./plugins/scenes/nightlight'),
+      register: require('./plugins/dynamic-scenes/nightlight'),
       options: { sceneId: 'DNzH2x2TBhCfOzo' },
     },
     {
-      register: require('./plugins/scenes/party'),
+      register: require('./plugins/dynamic-scenes/party'),
       options: { sceneId: 'gQ0XG0Jf0KaBFPY' },
     },
     {
-      register: require('./plugins/scenes/colorloop'),
+      register: require('./plugins/dynamic-scenes/colorloop'),
       options: { sceneId: 'Qx9hz1m1zB4BX1a', delayMs: 5000 },
     },
     {
-      register: require('./plugins/scenes/colorloop'),
+      register: require('./plugins/dynamic-scenes/colorloop'),
       options: { sceneId: 'AumuKhjg5hJyJad', delayMs: 500 },
     },
     {
-      register: require('./plugins/scenes/colorloop'),
+      register: require('./plugins/dynamic-scenes/colorloop'),
       options: { sceneId: '8ZXrWIUytImoY7n' },
     },
     {
-      register: require('./plugins/scenes/colorloop'),
+      register: require('./plugins/dynamic-scenes/colorloop'),
       options: { sceneId: '1Y-uBXA0TK6gwnU' },
     },
   ],

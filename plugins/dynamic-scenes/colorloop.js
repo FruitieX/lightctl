@@ -24,8 +24,8 @@
  * ```
  */
 
-const request = require('request-promise-native');
 const registerScene = require('../dynamic-scenes').registerScene;
+let scene = null;
 
 const nextColor = state => {
   const offsetLight = Object.values(state.scene.lightstates)[
@@ -34,18 +34,12 @@ const nextColor = state => {
 
   const lightId = state.scene.lights[state.lightIndex];
 
-  request({
-    url: `http://${process.env.HUE_IP}/api/${process.env
-      .USERNAME}/lights/${lightId}/state`,
-    method: 'PUT',
-    body: {
-      xy: offsetLight.xy ? offsetLight.xy : undefined,
-      ct: offsetLight.ct ? offsetLight.ct : undefined,
-      transitiontime: Math.round(
-        state.config.delayMs * state.scene.lights.length / 100,
-      ),
-    },
-    json: true,
+  scene.setLight(lightId, {
+    xy: offsetLight.xy ? offsetLight.xy : undefined,
+    ct: offsetLight.ct ? offsetLight.ct : undefined,
+    transitiontime: Math.round(
+      state.config.delayMs * state.scene.lights.length / 100,
+    ),
   });
 
   state.lightIndex = (state.lightIndex + 1) % state.scene.lights.length;
@@ -64,7 +58,7 @@ exports.register = async function(server, options, next) {
   config.delayMs = config.delayMs || 3000;
 
   try {
-    const scene = await registerScene(config.sceneId);
+    scene = await registerScene(config.sceneId);
 
     const state = {
       colorTimeout: null,
