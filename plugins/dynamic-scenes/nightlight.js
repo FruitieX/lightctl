@@ -49,6 +49,8 @@ const notifyActivation = async () => {
     json: true,
   });
 
+  const groupId = 0;
+
   let multiplier = 1;
   let maxBrightness = 0;
 
