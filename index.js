@@ -8,8 +8,10 @@ process.env.SERIAL_NUMBER = process.env.FORWARDER_MAC.replace(/:/g, '');
 process.env.BRIDGE_ID = [
   process.env.SERIAL_NUMBER.slice(0, 6),
   'fffe',
-  process.env.SERIAL_NUMBER.slice(6)
-].join('').toUpperCase();
+  process.env.SERIAL_NUMBER.slice(6),
+]
+  .join('')
+  .toUpperCase();
 
 // Server setup
 const server = new Hapi.Server();
@@ -30,7 +32,7 @@ server.route({
     });
 
     reply(response);
-  }
+  },
 });
 
 // Load any plugins
@@ -41,7 +43,16 @@ server.register(
     require('./plugins/ws-server'),
     {
       register: require('./plugins/scene-spy'),
-      options: { groups: [ 0, 1 ], pollDelay: 50, duplicateSceneChange: true },
+      options: {
+        groups: [0, 1],
+        pollDelay: 50,
+        sceneSensors: true,
+        autoCreateSensors: true,
+      },
+    },
+    {
+      register: require('./plugins/dynamic-scenes'),
+      options: { groups: [0, 1], duplicateSceneChange: true },
     },
     {
       register: require('./plugins/scenes/sunlight'),
@@ -71,7 +82,8 @@ server.register(
       register: require('./plugins/scenes/colorloop'),
       options: { sceneId: '1Y-uBXA0TK6gwnU' },
     },
-  ], (err) => {
+  ],
+  err => {
     if (err) {
       console.error('Failed to load a plugin:', err);
     }
@@ -82,5 +94,5 @@ server.register(
       }
       console.log(`Server running at: ${server.info.uri}`);
     });
-  }
+  },
 );

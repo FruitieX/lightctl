@@ -6,7 +6,7 @@
  *
  * DEPENDENCIES:
  *
- * - scene-spy
+ * - dynamic-scenes
  *
  * SETUP:
  *
@@ -15,10 +15,6 @@
  * ```
  * server.register(
  *   [
- *     {
- *       register: require('./plugins/scene-spy'),
- *       options: { groups: [ 0, 1 ] }
- *     },
  *     {
  *       register: require('./plugins/scenes/sunlight'),
  *       options: { sceneId: '<some existing Hue scene>' }
@@ -29,7 +25,7 @@
  */
 
 const request = require('request-promise-native');
-const registerScene = require('../scene-spy').registerScene;
+const registerScene = require('../dynamic-scenes').registerScene;
 
 let scene = null;
 let colorTimeout = null;
@@ -94,7 +90,7 @@ const timeMap = {
   23: {
     ct: kelvinToMired(2000),
     bri: 0.3,
-  }
+  },
 };
 
 const setColors = async initial => {
@@ -120,28 +116,31 @@ const setColors = async initial => {
       bri: Math.round(bri),
       ct: Math.round(lightState.ct),
       on: initial ? scene.lightstates[lightId].on : undefined,
-      transitiontime: initial ? undefined : 600
+      transitiontime: initial ? undefined : 600,
     };
 
-    requests.push(request({
-      url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights/${lightId}/state`,
-      method: 'PUT',
-      body,
-      json: true,
-    }))
+    requests.push(
+      request({
+        url: `http://${process.env.HUE_IP}/api/${process.env
+          .USERNAME}/lights/${lightId}/state`,
+        method: 'PUT',
+        body,
+        json: true,
+      }),
+    );
   });
 
   return await Promise.all(requests);
-}
+};
 
 const loop = async () => {
   await setColors();
 
   // 10 second intervals
-  colorTimeout = setTimeout(loop, config.delayMs || (1000 * 10));
+  colorTimeout = setTimeout(loop, config.delayMs || 1000 * 10);
 };
 
-exports.register = async function (server, options, next) {
+exports.register = async function(server, options, next) {
   server.dependency(['scene-spy']);
   config = options;
 
@@ -153,7 +152,7 @@ exports.register = async function (server, options, next) {
       colorTimeout = null;
 
       await setColors(true);
-      colorTimeout = setTimeout(loop, config.delayMs || (1000 * 10));
+      colorTimeout = setTimeout(loop, config.delayMs || 1000 * 10);
 
       console.log('sunlight activated');
     });
@@ -173,5 +172,5 @@ exports.register = async function (server, options, next) {
 
 exports.register.attributes = {
   name: 'scenes/sunlight',
-  version: '1.0.0'
+  version: '1.0.0',
 };

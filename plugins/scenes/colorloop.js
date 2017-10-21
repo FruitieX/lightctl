@@ -6,7 +6,7 @@
  *
  * DEPENDENCIES:
  *
- * - scene-spy
+ * - dynamic-scenes
  *
  * SETUP:
  *
@@ -15,10 +15,6 @@
  * ```
  * server.register(
  *   [
- *     {
- *       register: require('./plugins/scene-spy'),
- *       options: { groups: [ 0, 1 ] }
- *     },
  *     {
  *       register: require('./plugins/scenes/colorloop'),
  *       options: { sceneId: '<id of a Hue scene>' }
@@ -29,7 +25,7 @@
  */
 
 const request = require('request-promise-native');
-const registerScene = require('../scene-spy').registerScene;
+const registerScene = require('../dynamic-scenes').registerScene;
 
 const nextColor = state => {
   const offsetLight = Object.values(state.scene.lightstates)[
@@ -39,12 +35,15 @@ const nextColor = state => {
   const lightId = state.scene.lights[state.lightIndex];
 
   request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights/${lightId}/state`,
+    url: `http://${process.env.HUE_IP}/api/${process.env
+      .USERNAME}/lights/${lightId}/state`,
     method: 'PUT',
     body: {
       xy: offsetLight.xy ? offsetLight.xy : undefined,
       ct: offsetLight.ct ? offsetLight.ct : undefined,
-      transitiontime: Math.round((state.config.delayMs * state.scene.lights.length) / 100),
+      transitiontime: Math.round(
+        state.config.delayMs * state.scene.lights.length / 100,
+      ),
     },
     json: true,
   });
@@ -59,7 +58,7 @@ const nextColor = state => {
   state.colorTimeout = setTimeout(() => nextColor(state), state.config.delayMs);
 };
 
-exports.register = async function (server, options, next) {
+exports.register = async function(server, options, next) {
   server.dependency(['scene-spy']);
   const config = options;
   config.delayMs = config.delayMs || 3000;
@@ -82,7 +81,10 @@ exports.register = async function (server, options, next) {
       clearTimeout(state.colorTimeout);
       state.colorTimeout = null;
 
-      state.colorTimeout = setTimeout(() => nextColor(state), state.config.delayMs);
+      state.colorTimeout = setTimeout(
+        () => nextColor(state),
+        state.config.delayMs,
+      );
 
       console.log(`colorloop activated for scene ${config.sceneId}`);
     });

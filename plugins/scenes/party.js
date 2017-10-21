@@ -6,7 +6,7 @@
  *
  * DEPENDENCIES:
  *
- * - scene-spy
+ * - dynamic-scenes
  *
  * SETUP:
  *
@@ -15,10 +15,6 @@
  * ```
  * server.register(
  *   [
- *     {
- *       register: require('./plugins/scene-spy'),
- *       options: { groups: [ 0, 1 ] }
- *     },
  *     {
  *       register: require('./plugins/scenes/party'),
  *       options: { sceneId: '<some existing Hue scene>' }
@@ -29,7 +25,7 @@
  */
 
 const request = require('request-promise-native');
-const registerScene = require('../scene-spy').registerScene;
+const registerScene = require('../dynamic-scenes').registerScene;
 
 let scene = null;
 let colorTimeout = null;
@@ -38,23 +34,25 @@ let config = null;
 const setColors = async initial => {
   const requests = [];
 
-  scene.lights.forEach(lightId => requests.push(request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights/${lightId}/state`,
-    method: 'PUT',
-    body: {
-      bri: initial ? scene.lightstates[lightId].bri : undefined,
-      on: initial ? scene.lightstates[lightId].on : undefined,
-      xy: [
-        Math.random(),
-        Math.random()
-      ],
-      transitiontime: config.transitiontime || undefined
-    },
-    json: true,
-  })));
+  scene.lights.forEach(lightId =>
+    requests.push(
+      request({
+        url: `http://${process.env.HUE_IP}/api/${process.env
+          .USERNAME}/lights/${lightId}/state`,
+        method: 'PUT',
+        body: {
+          bri: initial ? scene.lightstates[lightId].bri : undefined,
+          on: initial ? scene.lightstates[lightId].on : undefined,
+          xy: [Math.random(), Math.random()],
+          transitiontime: config.transitiontime || undefined,
+        },
+        json: true,
+      }),
+    ),
+  );
 
   return await Promise.all(requests);
-}
+};
 
 const loop = async () => {
   await setColors();
@@ -62,7 +60,7 @@ const loop = async () => {
   colorTimeout = setTimeout(loop, config.delayMs || 500);
 };
 
-exports.register = async function (server, options, next) {
+exports.register = async function(server, options, next) {
   server.dependency(['scene-spy']);
   config = options;
 
@@ -90,5 +88,5 @@ exports.register = async function (server, options, next) {
 
 exports.register.attributes = {
   name: 'scenes/party',
-  version: '1.0.0'
+  version: '1.0.0',
 };
