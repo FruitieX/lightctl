@@ -6,7 +6,7 @@
  *
  * DEPENDENCIES:
  *
- * - dynamic-scenes
+ * - virtualized-scenes
  *
  * SETUP:
  *
@@ -24,41 +24,21 @@
  * ```
  */
 
-const registerScene = require('../dynamic-scenes').registerScene;
+const forEach = require('lodash/forEach');
 
 let scene = null;
 let colorTimeout = null;
-let config = null;
 
 const kelvinToMired = kelvin => 1000000 / kelvin;
-const night = {
-  ct: kelvinToMired(2000),
-  bri: 0.25, // 25% of bri value for each light in the bridge scene
-};
-
-const day = {
-  ct: kelvinToMired(4000),
-  bri: 1, // 100% of bri value for each light in the bridge scene
-};
+const night = kelvinToMired(2000);
+const day = kelvinToMired(4000);
 
 // Missing hours will use night settings
 const timeMap = {
-  7: {
-    ct: kelvinToMired(2200),
-    bri: 0.3,
-  },
-  8: {
-    ct: kelvinToMired(2500),
-    bri: 0.5,
-  },
-  9: {
-    ct: kelvinToMired(3000),
-    bri: 0.7,
-  },
-  10: {
-    ct: kelvinToMired(3500),
-    bri: 0.9,
-  },
+  7: kelvinToMired(2200),
+  8: kelvinToMired(2500),
+  9: kelvinToMired(3000),
+  10: kelvinToMired(3500),
   11: day,
   12: day,
   13: day,
@@ -66,99 +46,67 @@ const timeMap = {
   15: day,
   16: day,
   17: day,
-  18: {
-    ct: kelvinToMired(3500),
-    bri: 0.9,
-  },
-  19: {
-    ct: kelvinToMired(3000),
-    bri: 0.8,
-  },
-  20: {
-    ct: kelvinToMired(2500),
-    bri: 0.75,
-  },
-  21: {
-    ct: kelvinToMired(2000),
-    bri: 0.65,
-  },
-  22: {
-    ct: kelvinToMired(2000),
-    bri: 0.5,
-  },
-  23: {
-    ct: kelvinToMired(2000),
-    bri: 0.3,
-  },
+  18: kelvinToMired(3500),
+  19: kelvinToMired(3000),
+  20: kelvinToMired(2500),
 };
 
-const setColors = async initial => {
-  const requests = [];
-
+const setColors = (server, options) => {
   const hour = new Date().getHours();
-  const prevSettings = timeMap[hour] || night;
-  const nextSettings = timeMap[(hour + 1) % 24] || night;
+  const prevCt = timeMap[hour] || night;
+  const nextCt = timeMap[(hour + 1) % 24] || night;
 
   const weight = new Date().getMinutes() / 60;
 
-  // Interpolate between prevSettings and nextSettings
+  // Interpolate between prevCt and nextCt
   const timeSettings = {
-    ct: (1 - weight) * prevSettings.ct + weight * nextSettings.ct,
-    bri: (1 - weight) * prevSettings.bri + weight * nextSettings.bri,
+    ct: Math.round((1 - weight) * prevCt + weight * nextCt),
   };
 
+  const lightstates = scene.lightstates;
+
   scene.lights.forEach(lightId => {
-    const lightState = timeSettings;
-    const bri = lightState.bri * scene.lightstates[lightId].bri;
-
-    const body = {
-      bri: Math.round(bri),
-      ct: Math.round(lightState.ct),
-      on: initial ? scene.lightstates[lightId].on : undefined,
-      transitiontime: initial ? undefined : 600,
+    lightstates[lightId] = {
+      ...lightstates[lightId],
+      ...timeSettings,
+      transitiontime: options.delayMs / 100,
     };
-
-    requests.push(scene.setLight(lightId, body));
   });
 
-  return await Promise.all(requests);
+  server.emit('modifyScene', {
+    sceneId: options.sceneId,
+    payload: {
+      lightstates,
+    },
+  });
 };
 
-const loop = async () => {
-  await setColors();
+const loop = (server, options) => () => {
+  setColors(server, options);
 
   // 10 second intervals
-  colorTimeout = setTimeout(loop, config.delayMs || 1000 * 10);
+  colorTimeout = setTimeout(loop(server, options), options.delayMs);
+};
+
+const sceneMiddleware = options => ({ sceneId, prevSceneId, scene }) => {
+  if (sceneId === options.sceneId && prevSceneId !== sceneId) {
+    // Scene was just activated, don't use transitiontime
+    forEach(scene.lightstates, light => delete light.transitiontime);
+  }
 };
 
 exports.register = async function(server, options, next) {
-  server.dependency(['scene-spy']);
-  config = options;
+  options.delayMs = options.delayMs || 1000 * 10;
 
-  try {
-    scene = await registerScene(config.sceneId);
+  server.on('start', () => {
+    scene = server.plugins['virtualized-scenes'].scenes[options.sceneId];
 
-    scene.events.on('activate', async () => {
-      clearTimeout(colorTimeout);
-      colorTimeout = null;
+    server.on('sceneMiddleware', sceneMiddleware(options));
 
-      await setColors(true);
-      colorTimeout = setTimeout(loop, config.delayMs || 1000 * 10);
+    loop(server, options)();
+  });
 
-      console.log('sunlight activated');
-    });
-
-    scene.events.on('deactivate', () => {
-      clearTimeout(colorTimeout);
-      colorTimeout = null;
-
-      console.log('sunlight deactivated');
-    });
-
-    next();
-  } catch (e) {
-    next(e);
-  }
+  next();
 };
 
 exports.register.attributes = {

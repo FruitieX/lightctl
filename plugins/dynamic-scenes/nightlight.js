@@ -28,127 +28,125 @@
  * ```
  */
 
-const shuffle = require('lodash').shuffle;
+const forEach = require('lodash/forEach');
+const cloneDeep = require('lodash/cloneDeep');
+const omit = require('lodash/omit');
+const shuffle = require('lodash/shuffle');
 const request = require('request-promise-native');
-const registerScene = require('../dynamic-scenes').registerScene;
 
 let scene = null;
-let offTimeout = null;
+let timeout = null;
 let config = null;
 
-let nextIndex = 0;
-let lightsToTurnOff = [];
-
 const delay = ms =>
-  new Promise((resolve, reject) => (offTimeout = setTimeout(resolve, ms)));
+  new Promise((resolve, reject) => (timeout = setTimeout(resolve, ms)));
 
-const notifyActivation = async () => {
-  const lights = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights`,
-    method: 'GET',
-    json: true,
-  });
-
-  const groupId = 0;
-
-  let multiplier = 1;
-  let maxBrightness = 0;
-
-  Object.entries(lights).forEach(([lightId, light]) => {
-    if (light.state.bri > maxBrightness) {
-      maxBrightness = light.state.bri;
-    }
-  });
-
-  if (maxBrightness > 128) {
-    multiplier = -2;
-  }
-
-  await scene.setGroup(groupId, {
-    bri_inc: 50 * multiplier,
-    transitiontime: 2,
-  });
-  await delay(300);
-  await scene.setGroup(groupId, {
-    bri_inc: -50 * multiplier,
-    transitiontime: 2,
-  });
-  return await delay(1000);
-};
-
-const fadeLights = () =>
-  scene.lights.forEach(lightId =>
-    scene.setLight(lightId, {
-      bri: scene.lightstates[lightId].on ? scene.lightstates[lightId].bri : 0,
-      xy: config.xy || [0.6, 0.4],
-      transitiontime: Math.round((config.transitionMs || 60000) / 100),
-    }),
+const removeTransitiontime = lightstates => {
+  forEach(
+    lightstates,
+    (light, lightId) => (lightstates[lightId] = omit(light, 'transitiontime')),
   );
 
-// Lights fade off with intentional "popcorn" effect
-const lightsOff = () => {
-  const lightId = lightsToTurnOff[nextIndex++];
-  console.log(`Turning off light ${lightId}`);
+  return lightstates;
+};
 
-  // Apparently setting transitiontime here makes the light turn off much
-  // faster than without? So leaving it out for a smoother fade
-  scene.setLight(lightId, { on: false });
+const fadeBack = async (server, options, prevScene) => {
+  server.emit('modifyScene', {
+    sceneId: options.sceneId,
+    payload: {
+      lightstates: removeTransitiontime(prevScene.lightstates),
+    },
+  });
+};
 
-  if (nextIndex >= lightsToTurnOff.length) {
-    console.log('All lights turned off.');
-    return;
+const fadeTime = 60 * 1000;
+
+const runScene = async (server, options, scene, prevScene) => {
+  clearTimeout(timeout);
+  await delay(500);
+
+  // Fade back to previous scene
+  if (prevScene) {
+    await fadeBack(server, options, prevScene);
   }
 
-  const jitter =
-    (config.minOffJitter || 500) + Math.random() * (config.offJitter || 1500);
+  await delay(1000);
 
-  offTimeout = setTimeout(lightsOff, jitter);
+  const lightsToFade = shuffle(scene.lights);
+
+  const lightstates = cloneDeep(removeTransitiontime(prevScene.lightstates));
+
+  // Fade out lights one by one
+  for (const lightId of lightsToFade) {
+    const light = scene.lightstates[lightId];
+
+    console.log('fading light', lightId);
+
+    // For whatever reason, fading a light to 0 brightness and then turning it
+    // off results in a much smoother fade end than simply fading to off state
+    // with a long transitiontime
+    lightstates[lightId] = {
+      ...light,
+      transitiontime: Math.round(fadeTime / 100 / lightsToFade.length),
+      on: true,
+      bri: light.on ? light.bri : 0,
+      xy: light.xy ? light.xy : [0.6, 0.4],
+    };
+
+    server.emit('modifyScene', {
+      sceneId: options.sceneId,
+      payload: {
+        lightstates,
+      },
+    });
+
+    await delay(fadeTime / lightsToFade.length);
+
+    // Now turn light off if it should be off
+    if (!light.on) {
+      lightstates[lightId] = {
+        on: false,
+        bri: 0,
+      };
+
+      server.emit('modifyScene', {
+        sceneId: options.sceneId,
+        payload: {
+          lightstates,
+        },
+      });
+    }
+  }
+};
+
+const sceneMiddleware = (server, options, scene) => ({
+  sceneId,
+  prevSceneId,
+  prevScene,
+  scene: middlewareScene,
+}) => {
+  if (sceneId === options.sceneId && prevSceneId !== sceneId) {
+    // Scene was just activated
+
+    // Instant transition to black to indicate activation
+    for (const lightId in middlewareScene.lightstates) {
+      middlewareScene.lightstates[lightId] = scene.lightstates[lightId];
+    }
+
+    removeTransitiontime(middlewareScene.lightstates);
+
+    runScene(server, options, cloneDeep(scene), cloneDeep(prevScene));
+  }
 };
 
 exports.register = async function(server, options, next) {
-  server.dependency(['scene-spy']);
-  config = options;
+  server.on('start', () => {
+    scene = server.plugins['virtualized-scenes'].scenes[options.sceneId];
 
-  try {
-    scene = await registerScene(config.sceneId);
+    server.on('sceneMiddleware', sceneMiddleware(server, options, scene));
+  });
 
-    scene.events.on('activate', async () => {
-      if (!offTimeout) {
-        await notifyActivation();
-      } else {
-        clearTimeout(offTimeout);
-        offTimeout = null;
-      }
-
-      fadeLights();
-
-      nextIndex = 0;
-      lightsToTurnOff = [];
-      shuffle(Object.entries(scene.lightstates)).forEach(([lightId, state]) => {
-        if (!state.on) {
-          lightsToTurnOff.push(lightId);
-        }
-      });
-
-      offTimeout = setTimeout(
-        lightsOff,
-        Math.round(config.transitionMs || 60000),
-      );
-
-      console.log('nightlight activated: fading out lights');
-    });
-
-    scene.events.on('deactivate', () => {
-      clearTimeout(offTimeout);
-      offTimeout = null;
-
-      console.log('nightlight deactivated');
-    });
-
-    next();
-  } catch (e) {
-    next(e);
-  }
+  next();
 };
 
 exports.register.attributes = {

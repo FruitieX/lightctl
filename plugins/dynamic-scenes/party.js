@@ -54,7 +54,7 @@ const loop = async () => {
 };
 
 exports.register = async function(server, options, next) {
-  server.dependency(['scene-spy']);
+  server.dependency(['dynamic-scenes']);
   config = options;
 
   try {

@@ -40,31 +40,48 @@ server.register(
   [
     require('./plugins/ssdp-discovery'),
     require('./plugins/config-spoofer'),
-    require('./plugins/ws-server'),
+    // require('./plugins/ws-server'),
+    require('./plugins/virtualized-scenes'),
+    require('./plugins/virtualized-lights'),
+    require('./plugins/virtualized-groups'),
+    require('./plugins/api-spy'),
     {
-      register: require('./plugins/scene-spy'),
+      register: require('./plugins/smart-switches'),
       options: {
-        groups: [0, 1],
-        pollDelay: 50,
-        sceneSensors: true,
-        autoCreateSensors: true,
+        autoCreateSensor: true,
+        reprogramSwitches: true,
+        switchActions: {
+          15: {
+            ON_SHORT_RELEASED: [
+              { event: 'setScene', groupId: 0, sceneId: 'NFdJj2xpbz9mivi' },
+            ],
+            ON_HOLD: [
+              { event: 'setScene', groupId: 0, sceneId: 'cei1B4IvHsf4YkK' },
+            ],
+            OFF_SHORT_RELEASED: [
+              { event: 'setScene', groupId: 0, sceneId: 'wLGvlizDZ2AEzqO' },
+            ],
+            OFF_HOLD: [
+              { event: 'setScene', groupId: 0, sceneId: 'DNzH2x2TBhCfOzo' },
+            ],
+          },
+          13: {
+            ON_SHORT_RELEASED: [
+              { event: 'setScene', groupId: 0, sceneId: 'NFdJj2xpbz9mivi' },
+            ],
+            ON_HOLD: [
+              { event: 'setScene', groupId: 0, sceneId: 'cei1B4IvHsf4YkK' },
+            ],
+            OFF_SHORT_RELEASED: [{ event: 'setGroup', groupId: 0, on: false }],
+            OFF_HOLD: [{ event: 'setGroup', groupId: 0, on: false }],
+          },
+        },
       },
     },
-    {
-      register: require('./plugins/dynamic-scenes'),
-      options: { groups: [0, 1], duplicateSceneChange: true },
-    },
+    require('./plugins/scene-middleware/auto-brightness'),
     {
       register: require('./plugins/dynamic-scenes/sunlight'),
       options: { sceneId: 'NFdJj2xpbz9mivi' },
-    },
-    {
-      register: require('./plugins/dynamic-scenes/nightlight'),
-      options: { sceneId: 'DNzH2x2TBhCfOzo' },
-    },
-    {
-      register: require('./plugins/dynamic-scenes/party'),
-      options: { sceneId: 'gQ0XG0Jf0KaBFPY' },
     },
     {
       register: require('./plugins/dynamic-scenes/colorloop'),
@@ -82,6 +99,16 @@ server.register(
       register: require('./plugins/dynamic-scenes/colorloop'),
       options: { sceneId: '1Y-uBXA0TK6gwnU' },
     },
+    {
+      register: require('./plugins/dynamic-scenes/nightlight'),
+      options: { sceneId: 'DNzH2x2TBhCfOzo' },
+    },
+    /*
+    {
+      register: require('./plugins/dynamic-scenes/party'),
+      options: { sceneId: 'gQ0XG0Jf0KaBFPY' },
+    },
+    */
   ],
   err => {
     if (err) {

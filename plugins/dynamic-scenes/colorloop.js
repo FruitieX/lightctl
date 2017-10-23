@@ -24,22 +24,29 @@
  * ```
  */
 
-const registerScene = require('../dynamic-scenes').registerScene;
-let scene = null;
+const cloneDeep = require('lodash/cloneDeep');
+const forEach = require('lodash/forEach');
 
-const nextColor = state => {
-  const offsetLight = Object.values(state.scene.lightstates)[
+const nextColor = (server, options, state) => {
+  const offsetLight = Object.values(state.initialStates)[
     (state.lightIndex + state.offset) % state.scene.lights.length
   ];
 
   const lightId = state.scene.lights[state.lightIndex];
 
-  scene.setLight(lightId, {
-    xy: offsetLight.xy ? offsetLight.xy : undefined,
-    ct: offsetLight.ct ? offsetLight.ct : undefined,
-    transitiontime: Math.round(
-      state.config.delayMs * state.scene.lights.length / 100,
-    ),
+  if (offsetLight.xy) {
+    state.scene.lightstates[lightId].xy = offsetLight.xy;
+  }
+  if (offsetLight.ct) {
+    state.scene.lightstates[lightId].ct = offsetLight.ct;
+  }
+  state.scene.lightstates[lightId].transitiontime = Math.round(
+    state.options.delayMs * state.scene.lights.length / 100,
+  );
+
+  server.emit('modifyScene', {
+    sceneId: options.sceneId,
+    payload: { lightstates: state.scene.lightstates },
   });
 
   state.lightIndex = (state.lightIndex + 1) % state.scene.lights.length;
@@ -49,51 +56,43 @@ const nextColor = state => {
     state.offset = (state.offset + 1) % state.scene.lights.length;
   }
 
-  state.colorTimeout = setTimeout(() => nextColor(state), state.config.delayMs);
+  state.colorTimeout = setTimeout(
+    () => nextColor(server, options, state),
+    state.options.delayMs,
+  );
+};
+
+const sceneMiddleware = options => ({ sceneId, prevSceneId, scene }) => {
+  if (sceneId === options.sceneId && prevSceneId !== sceneId) {
+    // Scene was just activated, don't use transitiontime
+    forEach(scene.lightstates, light => delete light.transitiontime);
+  }
 };
 
 exports.register = async function(server, options, next) {
-  server.dependency(['scene-spy']);
-  const config = options;
-  config.delayMs = config.delayMs || 3000;
+  options.delayMs = options.delayMs || 3000;
 
-  try {
-    scene = await registerScene(config.sceneId);
+  server.on('start', () => {
+    const scene = server.plugins['virtualized-scenes'].scenes[options.sceneId];
 
     const state = {
       colorTimeout: null,
       lightIndex: 0,
       offset: 0,
-      scene,
-      config,
+      scene: cloneDeep(scene),
+      initialStates: cloneDeep(scene.lightstates),
+      options,
     };
 
-    scene.events.on('activate', async () => {
-      state.lightIndex = 0;
-      state.offset = 0;
+    server.on('sceneMiddleware', sceneMiddleware(options));
 
-      clearTimeout(state.colorTimeout);
-      state.colorTimeout = null;
+    state.colorTimeout = setTimeout(
+      () => nextColor(server, options, state),
+      state.options.delayMs,
+    );
+  });
 
-      state.colorTimeout = setTimeout(
-        () => nextColor(state),
-        state.config.delayMs,
-      );
-
-      console.log(`colorloop activated for scene ${config.sceneId}`);
-    });
-
-    scene.events.on('deactivate', () => {
-      clearTimeout(state.colorTimeout);
-      state.colorTimeout = null;
-
-      console.log(`colorloop deactivated for scene ${config.sceneId}`);
-    });
-
-    next();
-  } catch (e) {
-    next(e);
-  }
+  next();
 };
 
 exports.register.attributes = {
