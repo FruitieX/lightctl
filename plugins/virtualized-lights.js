@@ -61,6 +61,7 @@ const shouldUpdate = (field, oldValue, newValue) => {
     return true;
   }
 
+  // console.log('skipping identical value for field', field, oldValue);
   return false;
 };
 
@@ -96,13 +97,17 @@ const setLight = ({ lightId, payload }) => {
   // Figure out fields that have changed as a result of this setLight call
   const needsUpdate = { ...payload };
 
-  forEach(
-    payload,
-    (value, field) =>
-      shouldUpdate(field, light.state[field], value)
-        ? lightChanged({ lightId, payload: { [field]: value } })
-        : delete needsUpdate[field],
-  );
+  // It seems that lights which are off forget settings randomly, so only
+  // run shouldUpdate() for lights which are on
+  if (light.on) {
+    forEach(
+      payload,
+      (value, field) =>
+        shouldUpdate(field, light.state[field], value)
+          ? lightChanged({ lightId, payload: { [field]: value } })
+          : delete needsUpdate[field],
+    );
+  }
 
   // If no updates needed, don't send request
   if (
