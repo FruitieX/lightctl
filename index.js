@@ -44,6 +44,7 @@ server.register(
     require('./plugins/virtualized-scenes'),
     require('./plugins/virtualized-lights'),
     require('./plugins/virtualized-groups'),
+    require('./plugins/cycle-scenes'),
     require('./plugins/api-spy'),
     {
       register: require('./plugins/smart-switches'),
@@ -53,7 +54,10 @@ server.register(
         switchActions: {
           15: {
             ON_SHORT_RELEASED: [
-              { event: 'setScene', groupId: 0, sceneId: 'NFdJj2xpbz9mivi' },
+              {
+                event: 'cycleScenes',
+                scenes: ['NFdJj2xpbz9mivi', 'Qx9hz1m1zB4BX1a'],
+              },
             ],
             ON_HOLD: [
               { event: 'setScene', groupId: 0, sceneId: 'cei1B4IvHsf4YkK' },
