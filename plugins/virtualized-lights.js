@@ -25,6 +25,7 @@ const lightChanged = ({ lightId, payload }) => {
   }
 };
 
+// These fields are not idempotent so we should ignore their cached values
 const cacheIgnoreFields = [
   'transitiontime',
   'alert',
@@ -34,6 +35,21 @@ const cacheIgnoreFields = [
   'ct_inc',
   'xy_inc',
 ];
+
+// These are no-op by themselves
+const modifierFields = ['transitiontime'];
+
+const containsOnlyModifierFields = payload => {
+  let onlyModifiers = true;
+
+  Object.keys(payload).forEach(key => {
+    if (!modifierFields.includes(key)) {
+      onlyModifiers = false;
+    }
+  });
+
+  return onlyModifiers;
+};
 
 // TODO: handle xy array
 const shouldUpdate = (field, oldValue, newValue) => {
@@ -83,12 +99,20 @@ const setLight = ({ lightId, payload }) => {
   );
 
   // If no updates needed, don't send request
-  if (!Object.keys(needsUpdate).length) {
+  if (
+    !Object.keys(needsUpdate).length ||
+    containsOnlyModifierFields(needsUpdate)
+  ) {
     return;
   }
 
   try {
-    // console.log(lightId, needsUpdate);
+    console.log(
+      'virtualized-lights: sending lightstate updates to',
+      lightId,
+      needsUpdate,
+    );
+
     return request({
       url: `http://${process.env.HUE_IP}/api/${process.env
         .USERNAME}/lights/${lightId}/state`,
