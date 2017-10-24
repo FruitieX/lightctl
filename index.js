@@ -62,6 +62,14 @@ server.register(
             ON_HOLD: [
               { event: 'setScene', groupId: 0, sceneId: 'cei1B4IvHsf4YkK' },
             ],
+
+            UP_PRESSED: [{ event: 'dimBrightness', rate: 0.25 }],
+            UP_SHORT_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
+            UP_LONG_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
+            DOWN_PRESSED: [{ event: 'dimBrightness', rate: -0.25 }],
+            DOWN_SHORT_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
+            DOWN_LONG_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
+
             OFF_SHORT_RELEASED: [
               { event: 'setScene', groupId: 0, sceneId: 'wLGvlizDZ2AEzqO' },
             ],
@@ -76,6 +84,14 @@ server.register(
             ON_HOLD: [
               { event: 'setScene', groupId: 0, sceneId: 'cei1B4IvHsf4YkK' },
             ],
+
+            UP_PRESSED: [{ event: 'dimBrightness', rate: 0.25 }],
+            UP_SHORT_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
+            UP_LONG_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
+            DOWN_PRESSED: [{ event: 'dimBrightness', rate: -0.25 }],
+            DOWN_SHORT_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
+            DOWN_LONG_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
+
             OFF_SHORT_RELEASED: [{ event: 'setGroup', groupId: 0, on: false }],
             OFF_HOLD: [{ event: 'setGroup', groupId: 0, on: false }],
           },
@@ -83,6 +99,7 @@ server.register(
       },
     },
     require('./plugins/scene-middleware/auto-brightness'),
+    require('./plugins/scene-middleware/dim-brightness'),
     {
       register: require('./plugins/dynamic-scenes/sunlight'),
       options: { sceneId: 'NFdJj2xpbz9mivi' },

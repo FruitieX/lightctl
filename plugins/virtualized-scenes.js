@@ -21,7 +21,7 @@ const refresh = () => {
   setScene({ sceneId });
 };
 
-const setScene = (server, options) => async ({ sceneId, groupId }) => {
+const setScene = (server, options) => async ({ sceneId }) => {
   clearTimeout(refreshTimeout);
   const prevSceneId = findActiveSceneId();
 
@@ -60,7 +60,7 @@ const setScene = (server, options) => async ({ sceneId, groupId }) => {
   refreshTimeout = setTimeout(refresh, options.refreshInterval || 60 * 1000);
 };
 
-const modifyScene = server => ({ sceneId, payload }) => {
+const modifyScene = (server, options) => ({ sceneId, payload }) => {
   scenes[sceneId] = {
     ...scenes[sceneId],
     ...payload,
@@ -69,7 +69,7 @@ const modifyScene = server => ({ sceneId, payload }) => {
   const scene = scenes[sceneId];
 
   if (scene.active) {
-    server.emit('setScene', { sceneId });
+    setScene(server, options)({ sceneId });
   }
 };
 
@@ -97,11 +97,15 @@ exports.register = async function(server, options, next) {
 
   server.on('start', () => {
     server.on('setScene', setScene(server, options));
-    server.on('modifyScene', modifyScene(server));
+    server.on('refreshScene', () =>
+      setScene(server, options)({ sceneId: findActiveSceneId() }),
+    );
+    server.on('modifyScene', modifyScene(server, options));
   });
 
   server.event({ name: 'setScene', clone: true });
   server.event({ name: 'modifyScene', clone: true });
+  server.event('refreshScene');
   server.event('sceneMiddleware');
 
   next();

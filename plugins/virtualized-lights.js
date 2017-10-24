@@ -81,6 +81,12 @@ const reduceColorMethod = (payload, state) => {
   }
 };
 
+const sanitizeValues = payload => {
+  if (payload.bri) {
+    payload.bri = Math.max(0, Math.min(254, payload.bri));
+  }
+};
+
 const setLight = ({ lightId, payload }) => {
   // console.log('setLight()', payload);
   const light = lights[lightId];
@@ -105,6 +111,8 @@ const setLight = ({ lightId, payload }) => {
   ) {
     return;
   }
+
+  sanitizeValues(needsUpdate);
 
   try {
     console.log(
