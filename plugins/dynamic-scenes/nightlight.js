@@ -59,11 +59,11 @@ const fadeBack = async (server, options, prevScene) => {
   });
 };
 
-const fadeTime = 60 * 1000;
+const fadeTime = 30 * 1000;
 
 const runScene = async (server, options, scene, prevScene) => {
   clearTimeout(timeout);
-  await delay(500);
+  await delay(1000);
 
   // Fade back to previous scene
   if (prevScene) {
@@ -87,7 +87,7 @@ const runScene = async (server, options, scene, prevScene) => {
     // with a long transitiontime
     lightstates[lightId] = {
       ...light,
-      transitiontime: Math.round(fadeTime / 100 / lightsToFade.length),
+      transitiontime: Math.round((fadeTime / lightsToFade.length + 1000) / 100),
       on: true,
       bri: light.on ? light.bri : 0,
       xy: light.xy ? light.xy : [0.6, 0.4],
@@ -106,6 +106,7 @@ const runScene = async (server, options, scene, prevScene) => {
     if (!light.on) {
       lightstates[lightId] = {
         on: false,
+        // TODO: this bri: 0 hack is needed to avoid auto-brightness middleware from kicking in
         bri: 0,
       };
 

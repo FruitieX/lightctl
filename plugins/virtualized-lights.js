@@ -99,7 +99,7 @@ const setLight = ({ lightId, payload }) => {
 
   // It seems that lights which are off forget settings randomly, so only
   // run shouldUpdate() for lights which are on
-  if (light.on) {
+  if (light.state.on) {
     forEach(
       payload,
       (value, field) =>
@@ -107,6 +107,13 @@ const setLight = ({ lightId, payload }) => {
           ? lightChanged({ lightId, payload: { [field]: value } })
           : delete needsUpdate[field],
     );
+  } else {
+    lightChanged({ lightId, payload })
+
+    // Light is off, if we don't send an on command, don't send request
+    if (!needsUpdate.on) {
+      return;
+    }
   }
 
   // If no updates needed, don't send request
@@ -118,6 +125,11 @@ const setLight = ({ lightId, payload }) => {
   }
 
   sanitizeValues(needsUpdate);
+
+  // If turning light off, never send 'bri' as that seems to break fading out
+  if (needsUpdate.on === false) {
+    delete needsUpdate.bri;
+  }
 
   try {
     console.log(
@@ -158,8 +170,8 @@ exports.register = async function(server, options, next) {
     server.on('lightChanged', lightChanged);
   });
 
-  server.event('setLight');
-  server.event('lightChanged');
+  server.event({ name: 'setLight', clone: true });
+  server.event({ name: 'lightChanged', clone: true });
 
   next();
 };
