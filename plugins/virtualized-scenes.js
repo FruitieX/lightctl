@@ -49,7 +49,7 @@ const setScene = (server, options) => async ({ sceneId }) => {
     ),
   );
 
-  console.log('setScene()', scene.lightstates[lightId]);
+  console.log('setScene()', scene.lightstates);
   for (const lightId in scene.lightstates) {
     server.emit('setLight', {
       lightId,
