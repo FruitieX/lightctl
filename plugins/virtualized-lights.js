@@ -51,13 +51,21 @@ const containsOnlyModifierFields = payload => {
   return onlyModifiers;
 };
 
-// TODO: handle xy array
 const shouldUpdate = (field, oldValue, newValue) => {
   if (cacheIgnoreFields.includes(field)) {
     return true;
   }
 
-  if (oldValue !== newValue) {
+  if (field === 'xy') {
+    if (!oldValue) {
+      return true;
+    }
+
+    // Compare both xy components
+    if (oldValue[0] !== newValue[0] || oldValue[1] !== newValue[1]) {
+      return true;
+    }
+  } else if (oldValue !== newValue) {
     return true;
   }
 
