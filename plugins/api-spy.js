@@ -59,19 +59,24 @@ const onPreHandler = server => (req, reply) => {
 
   if (req.method === 'put') {
     if ((match = req.path.match(groupActionRegex))) {
-      // Scene changed for group
       const [result, username, groupId] = match;
 
-      console.log(
-        `api-spy: Group ${groupId} scene changed to: ${req.payload.scene}`,
-      );
-      // TODO: we match also other group actions that are not scene changes...
-      // they are ignored at the moment!
+      if (req.payload.scene) {
+        // Scene changed for group
+        console.log(
+          `api-spy: Group ${groupId} scene changed to: ${req.payload.scene}`,
+        );
 
-      server.emit('setScene', {
-        groupId,
-        sceneId: req.payload.scene || 'null',
-      });
+        server.emit('setScene', {
+          groupId,
+          sceneId: req.payload.scene || 'null',
+        });
+      } else {
+        server.emit('setGroup', {
+          groupId,
+          ...req.payload,
+        });
+      }
 
       const response = [];
 
