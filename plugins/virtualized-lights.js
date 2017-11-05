@@ -116,7 +116,7 @@ const setLight = ({ lightId, payload }) => {
           : delete needsUpdate[field],
     );
   } else {
-    lightChanged({ lightId, payload })
+    lightChanged({ lightId, payload });
 
     // Light is off, if we don't send an on command, don't send request
     if (!needsUpdate.on) {
@@ -146,6 +146,7 @@ const setLight = ({ lightId, payload }) => {
       needsUpdate,
     );
 
+    // TODO: move to hue-api.js
     return request({
       url: `http://${process.env.HUE_IP}/api/${process.env
         .USERNAME}/lights/${lightId}/state`,
@@ -167,11 +168,7 @@ exports.register = async function(server, options, next) {
   }
 
   // Discover existing lights
-  lights = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights`,
-    timeout: 1000,
-    json: true,
-  });
+  lights = await server.emitAwait('getLights');
 
   server.on('start', () => {
     server.on('setLight', setLight);

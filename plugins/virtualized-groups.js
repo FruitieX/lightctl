@@ -2,8 +2,6 @@
  * virtualized-scenes
  */
 
-const request = require('request-promise-native');
-
 let groups = {};
 let lights = {};
 
@@ -32,21 +30,13 @@ const setGroup = server => ({ groupId, ...payload }) => {
 };
 
 exports.register = async function(server, options, next) {
-  // Discover existing lights
-  lights = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights`,
-    timeout: 1000,
-    json: true,
-  });
+  server.on('start', async () => {
+    // Discover existing lights
+    lights = await server.emitAwait('getLights');
 
-  // Discover existing groups
-  groups = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups`,
-    timeout: 1000,
-    json: true,
-  });
+    // Discover existing groups
+    groups = await server.emitAwait('getGroups');
 
-  server.on('start', () => {
     server.on('setGroup', setGroup(server));
   });
 

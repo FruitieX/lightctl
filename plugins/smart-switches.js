@@ -141,11 +141,7 @@ exports.register = async function(server, options, next) {
   }
 
   // Discover existing sensors
-  let sensors = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors`,
-    timeout: 1000,
-    json: true,
-  });
+  let sensors = await server.emitAwait('getSensors');
 
   // Find button sensor if one exists
   let buttonSensorId = findKey(
@@ -186,11 +182,7 @@ exports.register = async function(server, options, next) {
   });
 
   // Discover existing rules
-  let rules = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/rules`,
-    timeout: 1000,
-    json: true,
-  });
+  let rules = await server.emitAwait('getRules');
 
   // Map existing rules to sensor events
   forEach(rules, (rule, ruleId) => {

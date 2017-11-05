@@ -32,7 +32,6 @@ const forEach = require('lodash/forEach');
 const cloneDeep = require('lodash/cloneDeep');
 const omit = require('lodash/omit');
 const shuffle = require('lodash/shuffle');
-const request = require('request-promise-native');
 
 let scene = null;
 let timeout = null;

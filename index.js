@@ -17,6 +17,15 @@ process.env.BRIDGE_ID = [
 const server = new Hapi.Server();
 server.connection({ port: process.env.FORWARDER_PORT });
 
+// Helper for emitting events and awaiting results from listeners
+const emitAwait = async event => {
+  const promises = [];
+  server.emit(event, promises);
+  const results = await promises;
+  return Object.assign({}, ...results);
+};
+server.decorate('server', 'emitAwait', emitAwait);
+
 // "Catch-all" route
 server.route({
   method: '*',
@@ -38,6 +47,7 @@ server.route({
 // Load any plugins
 server.register(
   [
+    require('./plugins/hue-api'),
     require('./plugins/ssdp-discovery'),
     require('./plugins/config-spoofer'),
     // require('./plugins/ws-server'),

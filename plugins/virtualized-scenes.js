@@ -2,7 +2,7 @@
  * virtualized-scenes
  */
 
-const request = require('request-promise-native');
+const forEach = require('lodash/forEach');
 const cloneDeep = require('lodash/cloneDeep');
 const findKey = require('lodash/findKey');
 
@@ -75,23 +75,10 @@ const modifyScene = (server, options) => ({ sceneId, payload }) => {
 
 exports.register = async function(server, options, next) {
   // Discover existing scenes
-  scenes = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/scenes`,
-    timeout: 1000,
-    json: true,
-  });
+  scenes = await server.emitAwait('getScenes');
 
-  for (const sceneId in scenes) {
-    const scene = scenes[sceneId];
-    scene.lightstates = (await request({
-      url: `http://${process.env.HUE_IP}/api/${process.env
-        .USERNAME}/scenes/${sceneId}`,
-      timeout: 1000,
-      json: true,
-    })).lightstates;
-
-    scene.active = false;
-  }
+  // Mark each scene as inactive
+  forEach(scenes, scene => (scene.active = false));
 
   server.expose('scenes', cloneDeep(scenes));
 

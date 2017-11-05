@@ -46,8 +46,6 @@
  *   ...
  */
 
-const request = require('request-promise-native');
-
 const forEach = require('lodash/forEach');
 const groupActionRegex = /\/api\/([\w-]+)\/groups\/(\d+)\/action/;
 const lightStateRegex = /\/api\/([\w-]+)\/lights\/(\d+)\/state/;
@@ -131,11 +129,7 @@ exports.register = async function(server, options, next) {
   server.ext('onPreHandler', onPreHandler(server));
 
   // Discover existing groups
-  groups = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups`,
-    timeout: 1000,
-    json: true,
-  });
+  groups = await server.emitAwait('getGroups');
 
   next();
 };
