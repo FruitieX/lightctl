@@ -3,7 +3,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "dotenv": "^4.0.0",
+    "dotenv-safe": "^4.0.4",
     "hapi": "^16.6.0",
     "lodash": "^4.17.4",
     "nes": "^6.4.3",
