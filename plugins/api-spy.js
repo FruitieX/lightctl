@@ -128,8 +128,10 @@ exports.register = async function(server, options, next) {
 
   server.ext('onPreHandler', onPreHandler(server));
 
-  // Discover existing groups
-  groups = await server.emitAwait('getGroups');
+  server.on('start', async () => {
+    // Discover existing groups
+    groups = await server.emitAwait('getGroups');
+  });
 
   next();
 };

@@ -20,7 +20,7 @@ server.connection({ port: process.env.FORWARDER_PORT });
 // Helper for emitting events and awaiting results from listeners
 const emitAwait = async event => {
   const promises = [];
-  server.emit(event, promises);
+  await new Promise(resolve => server.emit(event, promises, resolve));
   const results = await promises;
   return Object.assign({}, ...results);
 };

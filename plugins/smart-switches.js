@@ -140,158 +140,158 @@ exports.register = async function(server, options, next) {
     return next('smart-switches: USERNAME env var not supplied, aborting...');
   }
 
-  // Discover existing sensors
-  let sensors = await server.emitAwait('getSensors');
+  server.on('start', async () => {
+    // Discover existing sensors
+    let sensors = await server.emitAwait('getSensors');
 
-  // Find button sensor if one exists
-  let buttonSensorId = findKey(
-    sensors,
-    sensor => sensor.modelid === 'Button Sensor',
-  );
+    // Find button sensor if one exists
+    let buttonSensorId = findKey(
+      sensors,
+      sensor => sensor.modelid === 'Button Sensor',
+    );
 
-  // Create button sensor if it does not exist
-  if (!buttonSensorId) {
-    const [result] = await request({
-      url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors`,
-      timeout: 1000,
-      method: 'POST',
-      body: {
-        name: 'null',
-        modelid: `Button Sensor`,
-        swversion: '1',
-        type: 'CLIPGenericStatus',
-        uniqueid: `buttonsensor`,
-        manufacturername: 'smart-switches',
-      },
-      json: true,
+    // Create button sensor if it does not exist
+    if (!buttonSensorId) {
+      const [result] = await request({
+        url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors`,
+        timeout: 1000,
+        method: 'POST',
+        body: {
+          name: 'null',
+          modelid: `Button Sensor`,
+          swversion: '1',
+          type: 'CLIPGenericStatus',
+          uniqueid: `buttonsensor`,
+          manufacturername: 'smart-switches',
+        },
+        json: true,
+      });
+
+      buttonSensorId = result.success.id;
+    }
+
+    // Pick out dimmer switches
+    const switches = pickBy(sensors, sensor => sensor.modelid === 'RWL021');
+
+    // Set each sensor rule to null until we discover or create them
+    forEach(switches, sensor => {
+      sensor.rules = {};
+
+      forEach(BUTTON_STATES, (code, state) => {
+        sensor.rules[state] = null;
+      });
     });
 
-    buttonSensorId = result.success.id;
-  }
+    // Discover existing rules
+    let rules = await server.emitAwait('getRules');
 
-  // Pick out dimmer switches
-  const switches = pickBy(sensors, sensor => sensor.modelid === 'RWL021');
+    // Map existing rules to sensor events
+    forEach(rules, (rule, ruleId) => {
+      rule.conditions.forEach(condition => {
+        const match = condition.address.match(buttonEventAddress);
 
-  // Set each sensor rule to null until we discover or create them
-  forEach(switches, sensor => {
-    sensor.rules = {};
+        if (match) {
+          const [result, sensorId] = match;
+          const code = condition.value;
 
-    forEach(BUTTON_STATES, (code, state) => {
-      sensor.rules[state] = null;
+          const buttonState = findKey(BUTTON_STATES, state => state == code);
+
+          if (!buttonState) {
+            console.log(
+              `smart-switches: unknown button state ${code} on rule ${ruleId}`,
+            );
+          } else {
+            switches[sensorId].rules[buttonState] = ruleId;
+          }
+        }
+      });
     });
-  });
 
-  // Discover existing rules
-  let rules = await server.emitAwait('getRules');
+    // Reprogram switch rules to work as smart-switches
+    for (const sensorId in switches) {
+      const sensor = switches[sensorId];
+      //forEach(switches, (sensor, sensorId) => {
+      for (const state in sensor.rules) {
+        const ruleId = sensor.rules[state];
+        //forEach(sensor.rules, (ruleId, state) => {
 
-  // Map existing rules to sensor events
-  forEach(rules, (rule, ruleId) => {
-    rule.conditions.forEach(condition => {
-      const match = condition.address.match(buttonEventAddress);
+        const buttonEventAction = createButtonEventAction(
+          buttonSensorId,
+          sensorId,
+          state,
+        );
 
-      if (match) {
-        const [result, sensorId] = match;
-        const code = condition.value;
-
-        const buttonState = findKey(BUTTON_STATES, state => state == code);
-
-        if (!buttonState) {
+        if (ruleId === null) {
+          // Rule doesn't exist, create it
           console.log(
-            `smart-switches: unknown button state ${code} on rule ${ruleId}`,
+            `smart-switches: creating rule for switch ${sensorId} ${state}`,
           );
+
+          const [result] = await request({
+            url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/rules`,
+            timeout: 1000,
+            method: 'POST',
+            body: {
+              name: `Switch ${sensorId} ${state}`,
+              conditions: [
+                {
+                  address: `/sensors/${sensorId}/state/buttonevent`,
+                  operator: 'eq',
+                  value: String(BUTTON_STATES[state]), // API expects this to be a string for whatever reason
+                },
+              ],
+              actions: [buttonEventAction],
+            },
+            json: true,
+          });
+
+          sensor.rules[state] = result.success.id;
         } else {
-          switches[sensorId].rules[buttonState] = ruleId;
+          // Rule exists, modify it to work as smart-switch
+          console.log(
+            `smart-switches: modifying rule for switch ${sensorId} ${state}`,
+          );
+
+          const rule = rules[ruleId];
+
+          rule.name = `Switch ${sensorId} ${state}`;
+
+          // Make sure an action exists for updating the button sensor
+          // (and that it is correct and up to date)
+          const actionId = findKey(
+            rule.actions,
+            action => action.address === `/sensors/${buttonSensorId}`,
+          );
+
+          if (actionId !== undefined) {
+            // Update existing action
+            rule.actions[actionId] = buttonEventAction;
+          } else {
+            // Create new action
+            rule.actions.push(buttonEventAction);
+          }
+
+          // Bridge does not like us sending these fields back
+          delete rule.timestriggered;
+          delete rule.owner;
+          delete rule.created;
+          delete rule.lasttriggered;
+          delete rule.recycle;
+
+          const result = await request({
+            url: `http://${process.env.HUE_IP}/api/${process.env
+              .USERNAME}/rules/${ruleId}`,
+            timeout: 1000,
+            method: 'PUT',
+            body: rule,
+            json: true,
+          });
+
+          // TODO: error handling
         }
-      }
-    });
-  });
-
-  // Reprogram switch rules to work as smart-switches
-  for (const sensorId in switches) {
-    const sensor = switches[sensorId];
-    //forEach(switches, (sensor, sensorId) => {
-    for (const state in sensor.rules) {
-      const ruleId = sensor.rules[state];
-      //forEach(sensor.rules, (ruleId, state) => {
-
-      const buttonEventAction = createButtonEventAction(
-        buttonSensorId,
-        sensorId,
-        state,
-      );
-
-      if (ruleId === null) {
-        // Rule doesn't exist, create it
-        console.log(
-          `smart-switches: creating rule for switch ${sensorId} ${state}`,
-        );
-
-        const [result] = await request({
-          url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/rules`,
-          timeout: 1000,
-          method: 'POST',
-          body: {
-            name: `Switch ${sensorId} ${state}`,
-            conditions: [
-              {
-                address: `/sensors/${sensorId}/state/buttonevent`,
-                operator: 'eq',
-                value: String(BUTTON_STATES[state]), // API expects this to be a string for whatever reason
-              },
-            ],
-            actions: [buttonEventAction],
-          },
-          json: true,
-        });
-
-        sensor.rules[state] = result.success.id;
-      } else {
-        // Rule exists, modify it to work as smart-switch
-        console.log(
-          `smart-switches: modifying rule for switch ${sensorId} ${state}`,
-        );
-
-        const rule = rules[ruleId];
-
-        rule.name = `Switch ${sensorId} ${state}`;
-
-        // Make sure an action exists for updating the button sensor
-        // (and that it is correct and up to date)
-        const actionId = findKey(
-          rule.actions,
-          action => action.address === `/sensors/${buttonSensorId}`,
-        );
-
-        if (actionId !== undefined) {
-          // Update existing action
-          rule.actions[actionId] = buttonEventAction;
-        } else {
-          // Create new action
-          rule.actions.push(buttonEventAction);
-        }
-
-        // Bridge does not like us sending these fields back
-        delete rule.timestriggered;
-        delete rule.owner;
-        delete rule.created;
-        delete rule.lasttriggered;
-        delete rule.recycle;
-
-        const result = await request({
-          url: `http://${process.env.HUE_IP}/api/${process.env
-            .USERNAME}/rules/${ruleId}`,
-          timeout: 1000,
-          method: 'PUT',
-          body: rule,
-          json: true,
-        });
-
-        // TODO: error handling
       }
     }
-  }
 
-  server.on('start', () => {
     console.log(`smart-switches: Starting polling switches...`);
     startPolling(server, buttonSensorId, options);
   });

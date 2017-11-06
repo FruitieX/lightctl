@@ -6,9 +6,15 @@
 
 const request = require('request-promise-native');
 
+let lights = {};
+let groups = {};
+let scenes = {};
+let sensors = {};
+let rules = {};
+
 exports.register = async function(server, options, next) {
   // Discover existing lights
-  const lights = await request({
+  lights = await request({
     url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights`,
     timeout: 1000,
     json: true,
@@ -16,7 +22,7 @@ exports.register = async function(server, options, next) {
   console.log('hue-api: cached existing lights');
 
   // Discover existing groups
-  const groups = await request({
+  groups = await request({
     url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups`,
     timeout: 1000,
     json: true,
@@ -24,7 +30,7 @@ exports.register = async function(server, options, next) {
   console.log('hue-api: cached existing groups');
 
   // Discover existing scenes
-  const scenes = await request({
+  scenes = await request({
     url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/scenes`,
     timeout: 1000,
     json: true,
@@ -41,7 +47,7 @@ exports.register = async function(server, options, next) {
   console.log('hue-api: cached existing scenes');
 
   // Discover existing sensors
-  const sensors = await request({
+  sensors = await request({
     url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors`,
     timeout: 1000,
     json: true,
@@ -49,7 +55,7 @@ exports.register = async function(server, options, next) {
   console.log('hue-api: cached existing sensors');
 
   // Discover existing rules
-  const rules = await request({
+  rules = await request({
     url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/rules`,
     timeout: 1000,
     json: true,

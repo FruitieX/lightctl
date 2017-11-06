@@ -167,10 +167,10 @@ exports.register = async function(server, options, next) {
     );
   }
 
-  // Discover existing lights
-  lights = await server.emitAwait('getLights');
+  server.on('start', async () => {
+    // Discover existing lights
+    lights = await server.emitAwait('getLights');
 
-  server.on('start', () => {
     server.on('setLight', setLight);
     server.on('lightChanged', lightChanged);
   });
