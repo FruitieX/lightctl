@@ -11,9 +11,9 @@ let multiplier = 1;
 let multiplierChanged = false;
 let rateTimeout = null;
 
-const sceneMiddleware = ({ scene, sceneId, prevSceneId }) => {
+const sceneMiddleware = ({ scene, sceneId, prevSceneId, activated }) => {
   // Scene was just activated, reset dimmer value
-  if (prevSceneId !== sceneId) {
+  if (activated) {
     multiplier = 1;
     multiplierChanged = true;
   }

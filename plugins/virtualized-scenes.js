@@ -21,7 +21,7 @@ const refresh = () => {
   setScene({ sceneId });
 };
 
-const setScene = (server, options) => async ({ sceneId }) => {
+const setScene = (server, options, activated) => async ({ sceneId }) => {
   clearTimeout(refreshTimeout);
   const prevSceneId = findActiveSceneId();
 
@@ -44,7 +44,7 @@ const setScene = (server, options) => async ({ sceneId }) => {
   await new Promise(resolve =>
     server.emit(
       'sceneMiddleware',
-      { prevScene, prevSceneId, scene, sceneId },
+      { prevScene, prevSceneId, scene, sceneId, activated },
       resolve,
     ),
   );
@@ -83,7 +83,7 @@ exports.register = async function(server, options, next) {
   server.expose('scenes', cloneDeep(scenes));
 
   server.on('start', () => {
-    server.on('setScene', setScene(server, options));
+    server.on('setScene', setScene(server, options, true));
     server.on('refreshScene', () =>
       setScene(server, options)({ sceneId: findActiveSceneId() }),
     );
