@@ -12,10 +12,14 @@ let scenes = {};
 let sensors = {};
 let rules = {};
 
-exports.register = async function(server, options, next) {
+const register = async (server, options) => {
+  if (!server.config.HUE_IP || !server.config.USERNAME) {
+    throw 'hue-api: HUE_IP or USERNAME not found in config!';
+  }
+
   // Discover existing lights
   lights = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/lights`,
+    url: `http://${server.config.HUE_IP}/api/${server.config.USERNAME}/lights`,
     timeout: 1000,
     json: true,
   });
@@ -23,7 +27,7 @@ exports.register = async function(server, options, next) {
 
   // Discover existing groups
   groups = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/groups`,
+    url: `http://${server.config.HUE_IP}/api/${server.config.USERNAME}/groups`,
     timeout: 1000,
     json: true,
   });
@@ -31,15 +35,16 @@ exports.register = async function(server, options, next) {
 
   // Discover existing scenes
   scenes = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/scenes`,
+    url: `http://${server.config.HUE_IP}/api/${server.config.USERNAME}/scenes`,
     timeout: 1000,
     json: true,
   });
   for (const sceneId in scenes) {
     const scene = scenes[sceneId];
     scene.lightstates = (await request({
-      url: `http://${process.env.HUE_IP}/api/${process.env
-        .USERNAME}/scenes/${sceneId}`,
+      url: `http://${server.config.HUE_IP}/api/${
+        server.config.USERNAME
+      }/scenes/${sceneId}`,
       timeout: 1000,
       json: true,
     })).lightstates;
@@ -48,7 +53,7 @@ exports.register = async function(server, options, next) {
 
   // Discover existing sensors
   sensors = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors`,
+    url: `http://${server.config.HUE_IP}/api/${server.config.USERNAME}/sensors`,
     timeout: 1000,
     json: true,
   });
@@ -56,7 +61,7 @@ exports.register = async function(server, options, next) {
 
   // Discover existing rules
   rules = await request({
-    url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/rules`,
+    url: `http://${server.config.HUE_IP}/api/${server.config.USERNAME}/rules`,
     timeout: 1000,
     json: true,
   });
@@ -73,11 +78,10 @@ exports.register = async function(server, options, next) {
   server.on('getScenes', promises => promises.push(scenes));
   server.on('getSensors', promises => promises.push(sensors));
   server.on('getRules', promises => promises.push(rules));
-
-  next();
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'hue-api',
   version: '1.0.0',
+  register,
 };
