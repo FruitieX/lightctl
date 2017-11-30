@@ -1,0 +1,18 @@
+{
+  "name": "hue-forwarder",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^3.1.1",
+    "purescript-console": "^3.0.0",
+    "purescript-functions": "^3.0.0",
+    "purescript-foldable-traversable": "^3.6.1"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^3.0.0"
+  }
+}

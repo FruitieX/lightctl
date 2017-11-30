@@ -1,14 +1,14 @@
 {
   "scripts": {
     "start": "npm run build:live",
-    "build:live": "nodemon --exec ./node_modules/.bin/ts-node -- ./index.ts"
+    "build:psc": "pulp build -O --to src/main.js --skip-entry-point --main Main && echo module.exports = PS.Main >> src/main.js",
+    "build:live": "nodemon -e js,ts,purs -w src -w plugins --exec ./node_modules/.bin/ts-node -- ./index.ts"
   },
   "dependencies": {
     "@types/request-promise-native": "^1.0.9",
     "dotenv": "^4.0.0",
     "hapi": "^17.0.0",
     "lodash": "^4.17.4",
-    "nes": "^7.0.1",
     "node-ssdp": "^3.2.1",
     "request": "^2.82.0",
     "request-promise-native": "^1.0.5"

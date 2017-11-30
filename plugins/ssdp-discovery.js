@@ -4,6 +4,8 @@
  * Allows hue-forwarder to be discovered by Hue apps.
  */
 
+const { validateConfig } = require('../src/main');
+
 const SsdpServer = require('node-ssdp').Server;
 
 const DEVICE_TYPE = 'urn:schemas-upnp-org:device:Basic:1';
@@ -43,6 +45,14 @@ const generateDescription = config =>
 </root>`;
 
 const register = (server, options) => {
+  if (
+    !validateConfig(Object.keys(server.config), [
+      'FORWARDER_IP',
+      'SERIAL_NUMBER',
+    ])
+  ) {
+    throw 'Missing keys from config!';
+  }
   /* SSDP server setup */
   const ssdp = new SsdpServer({
     adInterval: 2000,
