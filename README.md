@@ -22,7 +22,7 @@ Setup
 
    ```
    # IP address of the target Hue bridge
-   HUE_IP=192.168.1.111
+   hue.bridgeAddr=192.168.1.111
 
    # Name of the forwarded bridge
    BRIDGE_NAME="Philips Hue (Forwarded)"

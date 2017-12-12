@@ -52,15 +52,14 @@ const sceneMiddleware = ({ scene }) => {
   }
 };
 
-exports.register = async function(server, options, next) {
-  server.on('start', () => {
-    server.on('sceneMiddleware', sceneMiddleware);
+const register = async function(server, options) {
+  server.events.on('start', () => {
+    server.events.on('sceneMiddleware', sceneMiddleware);
   });
-
-  next();
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'auto-brightness',
   version: '1.0.0',
+  register,
 };

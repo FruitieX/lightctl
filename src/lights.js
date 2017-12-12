@@ -1,11 +1,13 @@
 /*
- * virtualized-scenes
+ * lights
  */
 
 const request = require('request-promise-native');
 const forEach = require('lodash/forEach');
 
 let lights = {};
+
+// TODO: a lot of Hue specific stuff should live inside plugins
 
 const lightChanged = ({ lightId, payload }) => {
   const light = lights[lightId];
@@ -140,16 +142,13 @@ const setLight = ({ lightId, payload }) => {
   }
 
   try {
-    console.log(
-      'virtualized-lights: sending lightstate updates to',
-      lightId,
-      needsUpdate,
-    );
+    console.log('lights: sending lightstate updates to', lightId, needsUpdate);
 
     // TODO: move to hue-api.js
     return request({
-      url: `http://${process.env.HUE_IP}/api/${process.env
-        .USERNAME}/lights/${lightId}/state`,
+      url: `http://${server.config.hue.bridgeAddr}/api/${
+        server.config.hue.username
+      }/lights/${lightId}/state`,
       method: 'PUT',
       body: needsUpdate,
       json: true,
@@ -160,28 +159,31 @@ const setLight = ({ lightId, payload }) => {
   }
 };
 
-exports.register = async function(server, options, next) {
-  if (!process.env.USERNAME) {
-    return next(
-      'virtualized-lights: USERNAME env var not supplied, aborting...',
-    );
+const register = async function(server, options) {
+  /*
+  if (!server.config.hue.username) {
+    throw 'lights: USERNAME env var not supplied, aborting...';
   }
+  */
 
-  server.on('start', async () => {
+  server.events.on('start', async () => {
+    // TODO: light discovery (plugins should do this, and we should support updates)
+    /*
     // Discover existing lights
     lights = await server.emitAwait('getLights');
+    */
 
-    server.on('setLight', setLight);
-    server.on('lightChanged', lightChanged);
+    server.events.on('setLight', setLight);
+    server.events.on('lightChanged', lightChanged);
   });
 
+  server.event({ name: 'getLights', clone: true });
   server.event({ name: 'setLight', clone: true });
   server.event({ name: 'lightChanged', clone: true });
-
-  next();
 };
 
-exports.register.attributes = {
-  name: 'virtualized-lights',
+module.exports = {
+  name: 'lights',
   version: '1.0.0',
+  register,
 };

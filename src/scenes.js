@@ -1,5 +1,5 @@
 /*
- * virtualized-scenes
+ * scenes
  */
 
 const forEach = require('lodash/forEach');
@@ -42,7 +42,7 @@ const setScene = (server, options, activated) => async ({ sceneId }) => {
 
   // Allow scene middleware to modify scene before applying it
   await new Promise(resolve =>
-    server.emit(
+    server.events.emit(
       'sceneMiddleware',
       { prevScene, prevSceneId, scene, sceneId, activated },
       resolve,
@@ -51,7 +51,7 @@ const setScene = (server, options, activated) => async ({ sceneId }) => {
 
   console.log('setScene()', scene.lightstates);
   for (const lightId in scene.lightstates) {
-    server.emit('setLight', {
+    server.events.emit('setLight', {
       lightId,
       payload: scene.lightstates[lightId],
     });
@@ -73,7 +73,9 @@ const modifyScene = (server, options) => ({ sceneId, payload }) => {
   }
 };
 
-exports.register = async function(server, options, next) {
+const register = async function(server, options) {
+  // TODO: scene discovery (plugins should do this, and we should support updates)
+  /*
   // Discover existing scenes
   scenes = await server.emitAwait('getScenes');
 
@@ -81,24 +83,25 @@ exports.register = async function(server, options, next) {
   forEach(scenes, scene => (scene.active = false));
 
   server.expose('scenes', cloneDeep(scenes));
+  */
 
-  server.on('start', () => {
-    server.on('setScene', setScene(server, options, true));
-    server.on('refreshScene', () =>
+  server.events.on('start', () => {
+    server.events.on('setScene', setScene(server, options, true));
+    server.events.on('refreshScene', () =>
       setScene(server, options)({ sceneId: findActiveSceneId() }),
     );
-    server.on('modifyScene', modifyScene(server, options));
+    server.events.on('modifyScene', modifyScene(server, options));
   });
 
+  server.event({ name: 'getScenes', clone: true });
   server.event({ name: 'setScene', clone: true });
   server.event({ name: 'modifyScene', clone: true });
   server.event('refreshScene');
   server.event('sceneMiddleware');
-
-  next();
 };
 
-exports.register.attributes = {
-  name: 'virtualized-scenes',
+module.exports = {
+  name: 'scenes',
   version: '1.0.0',
+  register,
 };

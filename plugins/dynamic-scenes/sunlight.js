@@ -73,7 +73,7 @@ const setColors = (server, options) => {
     };
   });
 
-  server.emit('modifyScene', {
+  server.events.emit('modifyScene', {
     sceneId: options.sceneId,
     payload: {
       lightstates,
@@ -95,21 +95,20 @@ const sceneMiddleware = options => ({ sceneId, prevSceneId, scene }) => {
   }
 };
 
-exports.register = async function(server, options, next) {
+const register = async function(server, options) {
   options.delayMs = options.delayMs || 1000 * 10;
 
-  server.on('start', () => {
+  server.events.on('start', () => {
     scene = server.plugins['virtualized-scenes'].scenes[options.sceneId];
 
-    server.on('sceneMiddleware', sceneMiddleware(options));
+    server.events.on('sceneMiddleware', sceneMiddleware(options));
 
     loop(server, options)();
   });
-
-  next();
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'scenes/sunlight',
   version: '1.0.0',
+  register,
 };

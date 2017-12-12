@@ -44,7 +44,7 @@ const nextColor = (server, options, state) => {
     state.options.delayMs * state.scene.lights.length / 100,
   );
 
-  server.emit('modifyScene', {
+  server.events.emit('modifyScene', {
     sceneId: options.sceneId,
     payload: { lightstates: state.scene.lightstates },
   });
@@ -69,10 +69,10 @@ const sceneMiddleware = options => ({ sceneId, prevSceneId, scene }) => {
   }
 };
 
-exports.register = async function(server, options, next) {
+const register = async function(server, options) {
   options.delayMs = options.delayMs || 3000;
 
-  server.on('start', () => {
+  server.events.on('start', () => {
     const scene = server.plugins['virtualized-scenes'].scenes[options.sceneId];
 
     const state = {
@@ -84,19 +84,18 @@ exports.register = async function(server, options, next) {
       options,
     };
 
-    server.on('sceneMiddleware', sceneMiddleware(options));
+    server.events.on('sceneMiddleware', sceneMiddleware(options));
 
     state.colorTimeout = setTimeout(
       () => nextColor(server, options, state),
       state.options.delayMs,
     );
   });
-
-  next();
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'scenes/colorloop',
   version: '1.0.0',
   multiple: true,
+  register,
 };

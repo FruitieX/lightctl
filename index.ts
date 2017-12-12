@@ -1,147 +1,77 @@
 import * as Hapi from 'hapi';
 import * as request from 'request-promise-native';
 
-import initConfig from './config';
-
-// Server setup
-// @ts-ignore: until @types/hapi v17
-const server = new Hapi.Server({ port: process.env.FORWARDER_PORT });
-
-// Helper for emitting events and awaiting results from listeners
-const emitAwait = async (event: string) => {
-  const promises: any[] = [];
-  await new Promise(resolve => server.emit(event, promises, resolve));
-  const results = await promises;
-  return Object.assign({}, ...results);
-};
-server.decorate('server', 'emitAwait', emitAwait);
+const configPromise = require('./config');
 
 const initServer = async () => {
-  // "Catch-all" route
-  server.route({
-    method: '*',
-    path: '/{p*}',
-    handler: async (req: Hapi.Request, reply: Hapi.ReplyNoContinue) => {
-      console.log(`Forwarding: ${req.method} ${req.url.path}`);
+  const config = await configPromise;
 
-      const response = await request({
-        url: `http://${process.env.HUE_IP}${req.url.path}`,
-        method: req.method,
-        body: req.payload || undefined,
-        json: true,
-      });
-
-      reply(response);
-    },
+  // Server setup
+  // TODO: port is same as hue.forwarderPort?
+  const server = new Hapi.Server({
+    // @ts-ignore: until @types/hapi v17
+    port: config.port || 5678,
   });
 
-  const config = await initConfig();
-  // @ts-ignore: Yes it is
+  // @ts-ignore: until @types/hapi v17
+  server.events.on('response', function(request) {
+    console.log(
+      request.info.remoteAddress +
+        ': ' +
+        request.method.toUpperCase() +
+        ' ' +
+        request.url.path +
+        ' --> ' +
+        request.response.statusCode,
+    );
+  });
+
+  // Helper for emitting events and awaiting results from listeners
+  const emitAwait = async (event: string) => {
+    const promises: any[] = [];
+    await new Promise(resolve => server.events.emit(event, promises, resolve));
+    const results = await promises;
+    return Object.assign({}, ...results);
+  };
+  server.decorate('server', 'emitAwait', emitAwait);
+
   server.decorate('server', 'config', config);
 
-  const plugins = [
-    // require('./plugins/hue-api'),
-    require('./plugins/ssdp-discovery'),
-    /*
-    require('./plugins/config-spoofer'),
-    // require('./plugins/ws-server'),
-    require('./plugins/virtualized-scenes'),
-    require('./plugins/virtualized-lights'),
-    require('./plugins/virtualized-groups'),
-    require('./plugins/cycle-scenes'),
-    require('./plugins/api-spy'),
-    {
-      register: require('./plugins/smart-switches'),
-      options: {
-        autoCreateSensor: true,
-        reprogramSwitches: true,
-        switchActions: {
-          15: {
-            ON_SHORT_RELEASED: [
-              {
-                event: 'cycleScenes',
-                scenes: ['NFdJj2xpbz9mivi', 'Qx9hz1m1zB4BX1a'],
-              },
-            ],
-            ON_HOLD: [
-              { event: 'setScene', groupId: 0, sceneId: 'cei1B4IvHsf4YkK' },
-            ],
-
-            UP_PRESSED: [{ event: 'dimBrightness', rate: 0.25 }],
-            UP_SHORT_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
-            UP_LONG_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
-            DOWN_PRESSED: [{ event: 'dimBrightness', rate: -0.25 }],
-            DOWN_SHORT_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
-            DOWN_LONG_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
-
-            OFF_SHORT_RELEASED: [
-              { event: 'setScene', groupId: 0, sceneId: 'wLGvlizDZ2AEzqO' },
-            ],
-            OFF_HOLD: [
-              { event: 'setScene', groupId: 0, sceneId: 'DNzH2x2TBhCfOzo' },
-            ],
-          },
-          13: {
-            ON_SHORT_RELEASED: [
-              { event: 'setScene', groupId: 0, sceneId: 'NFdJj2xpbz9mivi' },
-            ],
-            ON_HOLD: [
-              { event: 'setScene', groupId: 0, sceneId: 'cei1B4IvHsf4YkK' },
-            ],
-
-            UP_PRESSED: [{ event: 'dimBrightness', rate: 0.25 }],
-            UP_SHORT_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
-            UP_LONG_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
-            DOWN_PRESSED: [{ event: 'dimBrightness', rate: -0.25 }],
-            DOWN_SHORT_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
-            DOWN_LONG_RELEASED: [{ event: 'dimBrightness', rate: 0 }],
-
-            OFF_SHORT_RELEASED: [{ event: 'setGroup', groupId: 0, on: false }],
-            OFF_HOLD: [{ event: 'setGroup', groupId: 0, on: false }],
-          },
-        },
-      },
-    },
-    require('./plugins/scene-middleware/auto-brightness'),
-    require('./plugins/scene-middleware/dim-brightness'),
-    {
-      register: require('./plugins/dynamic-scenes/sunlight'),
-      options: { sceneId: 'NFdJj2xpbz9mivi' },
-    },
-    {
-      register: require('./plugins/dynamic-scenes/colorloop'),
-      options: { sceneId: 'Qx9hz1m1zB4BX1a', delayMs: 5000 },
-    },
-    {
-      register: require('./plugins/dynamic-scenes/colorloop'),
-      options: { sceneId: 'AumuKhjg5hJyJad', delayMs: 500 },
-    },
-    {
-      register: require('./plugins/dynamic-scenes/colorloop'),
-      options: { sceneId: '8ZXrWIUytImoY7n' },
-    },
-    {
-      register: require('./plugins/dynamic-scenes/colorloop'),
-      options: { sceneId: '1Y-uBXA0TK6gwnU' },
-    },
-    {
-      register: require('./plugins/dynamic-scenes/nightlight'),
-      options: { sceneId: 'DNzH2x2TBhCfOzo' },
-    },
-    */
-    /*
-      {
-        register: require('./plugins/dynamic-scenes/party'),
-        options: { sceneId: 'gQ0XG0Jf0KaBFPY' },
-      },
-      */
-  ];
-
-  // Load any plugins
+  // Load all core plugins
   try {
-    await server.register(plugins);
+    await server.register([
+      require('./src/scenes'),
+      require('./src/lights'),
+      require('./src/groups'),
+    ]);
   } catch (e) {
-    console.log('Error while registering plugins:', e);
+    console.log('Error while registering core plugins:', e);
+    process.exit(1);
+  }
+
+  if (config.plugins) {
+    // @ts-ignore
+    const plugins = [];
+
+    // @ts-ignore
+    Object.entries(config.plugins).forEach(([key, value]) => {
+      // @ts-ignore
+      plugins.push({
+        // @ts-ignore
+        plugin: require(key),
+        // @ts-ignore
+        options: value,
+      });
+    });
+
+    // Load any plugins
+    try {
+      // @ts-ignore
+      await server.register(plugins);
+    } catch (e) {
+      console.log('Error while registering plugins:', e);
+      process.exit(1);
+    }
   }
 
   await server.start();

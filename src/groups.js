@@ -1,5 +1,5 @@
 /*
- * virtualized-scenes
+ * groups
  */
 
 let groups = {};
@@ -18,34 +18,34 @@ const setGroup = server => ({ groupId, ...payload }) => {
   }
 
   groupLights.forEach(lightId =>
-    server.emit('setLight', {
+    server.events.emit('setLight', {
       lightId,
       payload,
     }),
   );
 
-  server.emit('setScene', {
+  server.events.emit('setScene', {
     sceneId: 'null',
   });
 };
 
-exports.register = async function(server, options, next) {
-  server.on('start', async () => {
+const register = async function(server, options) {
+  server.events.on('start', async () => {
     // Discover existing lights
     lights = await server.emitAwait('getLights');
 
     // Discover existing groups
     groups = await server.emitAwait('getGroups');
 
-    server.on('setGroup', setGroup(server));
+    server.events.on('setGroup', setGroup(server));
   });
 
+  server.event({ name: 'getGroups', clone: true });
   server.event('setGroup');
-
-  next();
 };
 
-exports.register.attributes = {
-  name: 'virtualized-groups',
+module.exports = {
+  name: 'groups',
   version: '1.0.0',
+  register,
 };

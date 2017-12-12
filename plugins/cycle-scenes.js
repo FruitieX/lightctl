@@ -24,23 +24,22 @@ const setScene = ({ sceneId }) => {
 const cycleScenes = server => ({ scenes }) => {
   const currentIndex = scenes.indexOf(activeScene);
 
-  server.emit('setScene', {
+  server.events.emit('setScene', {
     sceneId: scenes[(currentIndex + 1) % scenes.length],
   });
 };
 
-exports.register = async function(server, options, next) {
-  server.on('start', () => {
-    server.on('setScene', setScene);
-    server.on('cycleScenes', cycleScenes(server));
+const register = async function(server, options) {
+  server.events.on('start', () => {
+    server.events.on('setScene', setScene);
+    server.events.on('cycleScenes', cycleScenes(server));
   });
 
   server.event('cycleScenes');
-
-  next();
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'cycle-scenes',
   version: '1.0.0',
+  register,
 };

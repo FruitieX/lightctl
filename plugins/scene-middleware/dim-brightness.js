@@ -46,7 +46,7 @@ const dimBrightness = server => ({ rate }) => {
     multiplierChanged = true;
   }
 
-  server.emit('refreshScene');
+  server.events.emit('refreshScene');
 
   clearTimeout(rateTimeout);
   if (rate && multiplierChanged) {
@@ -54,18 +54,17 @@ const dimBrightness = server => ({ rate }) => {
   }
 };
 
-exports.register = async function(server, options, next) {
-  server.on('start', () => {
-    server.on('sceneMiddleware', sceneMiddleware);
-    server.on('dimBrightness', dimBrightness(server));
+const register = async function(server, options) {
+  server.events.on('start', () => {
+    server.events.on('sceneMiddleware', sceneMiddleware);
+    server.events.on('dimBrightness', dimBrightness(server));
   });
 
   server.event('dimBrightness');
-
-  next();
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'dim-brightness',
   version: '1.0.0',
+  register,
 };

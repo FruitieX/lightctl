@@ -65,12 +65,12 @@ const onPreHandler = server => (req, reply) => {
           `api-spy: Group ${groupId} scene changed to: ${req.payload.scene}`,
         );
 
-        server.emit('setScene', {
+        server.events.emit('setScene', {
           groupId,
           sceneId: req.payload.scene || 'null',
         });
       } else {
-        server.emit('setGroup', {
+        server.events.emit('setGroup', {
           groupId,
           ...req.payload,
         });
@@ -98,11 +98,13 @@ const onPreHandler = server => (req, reply) => {
       );
 
       console.log(
-        `api-spy: Light ${lightId} state changed, scene reset for group ${groupId}`,
+        `api-spy: Light ${lightId} state changed, scene reset for group ${
+          groupId
+        }`,
       );
 
-      server.emit('setScene', { groupId, sceneId: 'null' });
-      server.emit('setLight', { lightId, payload: req.payload });
+      server.events.emit('setScene', { groupId, sceneId: 'null' });
+      server.events.emit('setLight', { lightId, payload: req.payload });
 
       const response = [];
 
@@ -121,22 +123,21 @@ const onPreHandler = server => (req, reply) => {
   return reply.continue();
 };
 
-exports.register = async function(server, options, next) {
-  if (!process.env.USERNAME) {
-    return next('api-spy: USERNAME env var not supplied, aborting...');
+const register = async function(server, options) {
+  if (!server.config.hue.username) {
+    throw 'api-spy: USERNAME env var not supplied, aborting...';
   }
 
   server.ext('onPreHandler', onPreHandler(server));
 
-  server.on('start', async () => {
+  server.events.on('start', async () => {
     // Discover existing groups
     groups = await server.emitAwait('getGroups');
   });
-
-  next();
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'api-spy',
   version: '1.0.0',
+  register,
 };

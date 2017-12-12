@@ -53,7 +53,7 @@ const loop = async () => {
   colorTimeout = setTimeout(loop, config.delayMs || 500);
 };
 
-exports.register = async function(server, options, next) {
+const register = async function(server, options) {
   server.dependency(['dynamic-scenes']);
   config = options;
 
@@ -72,14 +72,13 @@ exports.register = async function(server, options, next) {
       clearTimeout(colorTimeout);
       colorTimeout = null;
     });
-
-    next();
   } catch (e) {
-    next(e);
+    throw e;
   }
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'scenes/party',
   version: '1.0.0',
+  register,
 };

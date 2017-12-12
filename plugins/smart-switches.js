@@ -61,8 +61,9 @@ const startPolling = async (server, buttonSensorId, options) => {
   while (true) {
     try {
       const buttonSensor = await request({
-        url: `http://${process.env.HUE_IP}/api/${process.env
-          .USERNAME}/sensors/${buttonSensorId}`,
+        url: `http://${server.config.hue.bridgeAddr}/api/${
+          server.config.hue.username
+        }/sensors/${buttonSensorId}`,
         timeout: 1000,
         json: true,
       });
@@ -79,14 +80,15 @@ const startPolling = async (server, buttonSensorId, options) => {
 
         if (switchActions && switchActions[state]) {
           switchActions[state].forEach(({ event, ...payload }) =>
-            server.emit(event, payload),
+            server.events.emit(event, payload),
           );
         }
 
         // Mark scene activation as handled
         await request({
-          url: `http://${process.env.HUE_IP}/api/${process.env
-            .USERNAME}/sensors/${buttonSensorId}`,
+          url: `http://${server.config.hue.bridgeAddr}/api/${
+            server.config.hue.username
+          }/sensors/${buttonSensorId}`,
           timeout: 1000,
           method: 'PUT',
           body: {
@@ -135,12 +137,12 @@ const createButtonEventAction = (buttonSensorId, sensorId, state) => ({
 });
 const buttonEventAddress = /\/sensors\/(\d+)\/state\/buttonevent/;
 
-exports.register = async function(server, options, next) {
-  if (!process.env.USERNAME) {
-    return next('smart-switches: USERNAME env var not supplied, aborting...');
+const register = async function(server, options) {
+  if (!server.config.hue.username) {
+    throw 'smart-switches: USERNAME env var not supplied, aborting...';
   }
 
-  server.on('start', async () => {
+  server.events.on('start', async () => {
     // Discover existing sensors
     let sensors = await server.emitAwait('getSensors');
 
@@ -153,7 +155,9 @@ exports.register = async function(server, options, next) {
     // Create button sensor if it does not exist
     if (!buttonSensorId) {
       const [result] = await request({
-        url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/sensors`,
+        url: `http://${server.config.hue.bridgeAddr}/api/${
+          server.config.hue.username
+        }/sensors`,
         timeout: 1000,
         method: 'POST',
         body: {
@@ -228,7 +232,9 @@ exports.register = async function(server, options, next) {
           );
 
           const [result] = await request({
-            url: `http://${process.env.HUE_IP}/api/${process.env.USERNAME}/rules`,
+            url: `http://${server.config.hue.bridgeAddr}/api/${
+              server.config.hue.username
+            }/rules`,
             timeout: 1000,
             method: 'POST',
             body: {
@@ -279,8 +285,9 @@ exports.register = async function(server, options, next) {
           delete rule.recycle;
 
           const result = await request({
-            url: `http://${process.env.HUE_IP}/api/${process.env
-              .USERNAME}/rules/${ruleId}`,
+            url: `http://${server.config.hue.bridgeAddr}/api/${
+              server.config.hue.username
+            }/rules/${ruleId}`,
             timeout: 1000,
             method: 'PUT',
             body: rule,
@@ -295,11 +302,10 @@ exports.register = async function(server, options, next) {
     console.log(`smart-switches: Starting polling switches...`);
     startPolling(server, buttonSensorId, options);
   });
-
-  next();
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'smart-switches',
   version: '1.0.0',
+  register,
 };

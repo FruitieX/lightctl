@@ -1,11 +1,11 @@
 {
   "scripts": {
     "start": "npm run build:live",
-    "build:live": "nodemon --exec ./node_modules/.bin/ts-node -- ./index.ts"
+    "build:live": "nodemon -e js,ts -w plugins -w src -w index.ts -w config.js --exec ./node_modules/.bin/ts-node -- ./index.ts"
   },
   "dependencies": {
     "@types/request-promise-native": "^1.0.9",
-    "dotenv": "^4.0.0",
+    "cosmiconfig": "^3.1.0",
     "hapi": "^17.0.0",
     "lodash": "^4.17.4",
     "nes": "^7.0.1",

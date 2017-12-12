@@ -50,7 +50,7 @@ const removeTransitiontime = lightstates => {
 };
 
 const fadeBack = async (server, options, prevScene) => {
-  server.emit('modifyScene', {
+  server.events.emit('modifyScene', {
     sceneId: options.sceneId,
     payload: {
       lightstates: removeTransitiontime(prevScene.lightstates),
@@ -92,7 +92,7 @@ const runScene = async (server, options, scene, prevScene) => {
       xy: light.xy ? light.xy : [0.6, 0.4],
     };
 
-    server.emit('modifyScene', {
+    server.events.emit('modifyScene', {
       sceneId: options.sceneId,
       payload: {
         lightstates,
@@ -109,7 +109,7 @@ const runScene = async (server, options, scene, prevScene) => {
         bri: 0,
       };
 
-      server.emit('modifyScene', {
+      server.events.emit('modifyScene', {
         sceneId: options.sceneId,
         payload: {
           lightstates,
@@ -139,17 +139,19 @@ const sceneMiddleware = (server, options, scene) => ({
   }
 };
 
-exports.register = async function(server, options, next) {
-  server.on('start', () => {
+const register = async function(server, options) {
+  server.events.on('start', () => {
     scene = server.plugins['virtualized-scenes'].scenes[options.sceneId];
 
-    server.on('sceneMiddleware', sceneMiddleware(server, options, scene));
+    server.events.on(
+      'sceneMiddleware',
+      sceneMiddleware(server, options, scene),
+    );
   });
-
-  next();
 };
 
-exports.register.attributes = {
+module.exports = {
   name: 'scenes/nightlight',
   version: '1.0.0',
+  register,
 };
