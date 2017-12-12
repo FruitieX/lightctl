@@ -1,45 +1,5 @@
 const request = require('request-promise-native');
-const delay = require('../../src/utils').delay;
-
-// Have the physical Hue bridge generate us a username
-const getUsername = async options => {
-  console.log(
-    'Warning: Hue plugin config variable "bridgeUsername" not set, authenticating with bridge...',
-  );
-  console.log(
-    'Please press the link button on your Hue bridge to obtain a username.',
-  );
-
-  let bridgeUsername = null;
-
-  while (!bridgeUsername) {
-    await delay(1000);
-    try {
-      const response = (await request({
-        url: `http://${options.bridgeAddr}/api`,
-        timeout: 1000,
-        method: 'POST',
-        body: {
-          devicetype: 'hue-forwarder',
-        },
-        json: true,
-      }))[0];
-
-      if (response.success) {
-        bridgeUsername = response.success.username;
-      }
-    } catch (e) {
-      console.log('Error while obtaining Hue username:', e);
-    }
-  }
-
-  console.log('Your Hue Bridge username is:', bridgeUsername);
-  console.log(
-    'Please copy-paste this into your Hue plugin config under variable "bridgeUsername" and then restart hue-forwarder.',
-  );
-
-  return bridgeUsername;
-};
+const delay = require('../../../src/utils').delay;
 
 // Guess user's network interface
 // Used in case the config does not contain the IP or MAC addresses of this machine.
@@ -88,20 +48,6 @@ const getLocalMac = () => {
 // Combines given config options with default values where needed
 exports.initConfig = async options => {
   const hue = options ? { ...options } : {};
-
-  if (!hue.bridgeAddr) {
-    // TODO: autodiscover bridge using SSDP?
-    console.log(
-      'Warning: Hue plugin config variable "bridgeAddr" not set, forcing dummy mode',
-    );
-    hue.dummy = true;
-    hue.bridgeUsername = 'dummyusername';
-  }
-
-  if (!hue.dummy && !hue.bridgeUsername) {
-    hue.bridgeUsername = await getUsername(options);
-    process.exit(1);
-  }
 
   hue.forwarderName = hue.forwarderName || 'Philips Hue (Forwarded)';
   hue.forwarderAddr = hue.forwarderAddr || getLocalAddr();

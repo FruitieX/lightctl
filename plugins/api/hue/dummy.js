@@ -1,3 +1,13 @@
+exports.setLightSuccess = (lightId, values) => {
+  const success = {};
+
+  Object.entries(values).forEach(
+    ([key, value]) => (success[`/lights/${lightId}/state/${key}`] = value),
+  );
+
+  return [{ success }];
+};
+
 exports.getScenes = () => ({
   '1Y-uBXA0TK6gwnU': {
     appdata: {
@@ -47,7 +57,7 @@ exports.getGroups = () => ({
     action: {
       alert: 'none',
       bri: 136,
-      colormode: 'ct',
+      colormode: 'xy',
       ct: 500,
       effect: 'none',
       hue: 7170,
@@ -82,7 +92,7 @@ exports.getLights = () => ({
     state: {
       alert: 'none',
       bri: 138,
-      colormode: 'ct',
+      colormode: 'xy',
       ct: 500,
       effect: 'none',
       hue: 7170,
@@ -115,7 +125,7 @@ exports.getLights = () => ({
     state: {
       alert: 'none',
       bri: 138,
-      colormode: 'ct',
+      colormode: 'xy',
       ct: 500,
       effect: 'none',
       hue: 7170,
@@ -230,7 +240,7 @@ exports.getConfigAuthenticated = hueConfig => {
     backup: { status: 'idle', errorcode: 0 },
     starterkitid: '',
     whitelist: {
-      [hueConfig.bridgeUsername]: {
+      dummyuser: {
         'last use date': exports.dateToHue(d),
         'create date': '2017-12-11T17:17:23',
         name: 'Hue 2#Samsung SM-G950F',
@@ -287,7 +297,7 @@ exports.getAllUnauthenticated = hueConfig => [
 exports.linkButtonSuccess = hueConfig => [
   {
     success: {
-      username: hueConfig.bridgeUsername,
+      username: 'dummyuser',
     },
   },
 ];

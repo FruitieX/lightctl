@@ -1,11 +1,17 @@
 port: 5678
 
 plugins:
-  ./plugins/hue:
+  ./plugins/gateway/ws:
+
+  ./plugins/api/hue:
     forwarderName: Hue Forwarder
-  ./plugins/cycle-scenes:
-  ./plugins/scene-middleware/auto-brightness:
-  ./plugins/scene-middleware/dim-brightness:
+
+  ./plugins/gateway/hue:
+    dummy: true
+
+  ./plugins/scenes/cycle-scenes:
+  ./plugins/scenes/scene-middleware/auto-brightness:
+  ./plugins/scenes/scene-middleware/dim-brightness:
 
 #  ./plugins/dynamic-scenes/sunlight:
 #    sceneId: NFdJj2xpbz9mivi

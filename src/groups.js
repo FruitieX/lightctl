@@ -32,7 +32,7 @@ const setGroup = server => ({ groupId, ...payload }) => {
 const register = async function(server, options) {
   server.events.on('start', async () => {
     // Discover existing lights
-    lights = await server.emitAwait('getLights');
+    //lights = await server.emitAwait('getLights');
 
     // Discover existing groups
     groups = await server.emitAwait('getGroups');
