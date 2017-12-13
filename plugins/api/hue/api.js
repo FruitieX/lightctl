@@ -30,6 +30,7 @@ const modifyConfig = (body, hueConfig) => {
   return body;
 };
 
+const multisourceRE = /(.*) \(#(\d+)\)/;
 const toHueLights = luminaires => {
   const hueLights = {};
 
@@ -39,7 +40,7 @@ const toHueLights = luminaires => {
         ...dummy.getLights()['1'],
       };
 
-      const postfix = luminaire.lights.length > 1 ? `(#${index})` : '';
+      const postfix = luminaire.lights.length > 1 ? ` (#${index + 1})` : '';
 
       hueLight.name = luminaire.name + postfix;
       hueLight.uniqueid = luminaire.id + postfix;
@@ -94,9 +95,16 @@ exports.initApi = async (server, hueConfig) => {
     handler: req => {
       const hueLights = toHueLights(getLuminaires());
 
-      // TODO: multilight luminaire support
+      // First assume single light luminaire
       let luminaireId = req.params.lightId;
       let lightId = 0;
+
+      // Test for multi light luminaire
+      let results = null;
+      if ((results = multisourceRE.exec(luminaireId))) {
+        luminaireId = results[1];
+        lightId = results[2] - 1;
+      }
 
       const hueLight = hueLights[req.params.lightId];
 
@@ -120,6 +128,8 @@ exports.initApi = async (server, hueConfig) => {
       const groups = dummy.getGroups(hueConfig);
 
       const hueLights = toHueLights(getLuminaires());
+      // console.log(hueLights);
+      // console.log(JSON.stringify(getLuminaires()));
 
       // Just spam all existing lights into the first group... for now?
       groups['1'].lights = Object.keys(hueLights);

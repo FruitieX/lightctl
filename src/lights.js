@@ -102,7 +102,7 @@ const registerLuminaire = fields => {
     return console.log('Error: registerLuminaire() with already existing id!');
   }
 
-  console.log('registerLuminaire():', fields);
+  console.log('registerLuminaire():', JSON.stringify(fields));
 
   state.luminaires.push(new Luminaire(fields));
 };
