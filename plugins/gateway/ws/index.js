@@ -1,20 +1,18 @@
 const Nes = require('nes');
-const { setLights } = require('../../../src/lights');
-
-const gatewayRegex = /ws\/(.*)/;
+const { registerLuminaire } = require('../../../src/lights');
 
 const register = async function(server, options) {
   await server.register(Nes);
 
-  server.subscription('/lights/{lightId}');
-  server.events.on('lightsChanged', lights => {
-    lights.forEach(light => {
-      const result = gatewayRegex.exec(light.id);
-      if (result) {
-        console.log(`publishing to /lights/${result[1]}`);
-        server.publish(`/lights/${result[1]}`, light);
-      }
-    });
+  server.subscription('/luminaires/{luminaireId}');
+  server.events.on('luminaireUpdate', luminaire => {
+    /*
+    console.log(
+      `publishing to /luminaires/${luminaire.id}`,
+      JSON.stringify(luminaire.lights),
+    );
+    */
+    server.publish(`/luminaires/${luminaire.id}`, luminaire.lights);
   });
 
   server.route({
@@ -23,7 +21,11 @@ const register = async function(server, options) {
     config: {
       id: 'register',
       handler: (req, h) => {
-        setLights([{ ...req.payload, id: `ws/${req.payload.id}` }]);
+        registerLuminaire({
+          ...req.payload,
+          id: req.payload.id,
+          gateway: 'ws',
+        });
 
         return { status: 'ok' };
       },

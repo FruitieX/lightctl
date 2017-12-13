@@ -7,7 +7,7 @@
 const convert = require('color-convert');
 const dummy = require('./dummy');
 const request = require('request-promise-native');
-const { getLights, setLights } = require('../../../src/lights');
+const { getLuminaires, setLight } = require('../../../src/lights');
 const { getColor } = require('./utils');
 //const { rgbToXy } = require('../../../src/utils');
 
@@ -30,41 +30,36 @@ const modifyConfig = (body, hueConfig) => {
   return body;
 };
 
-const toHueLights = lights => {
+const toHueLights = luminaires => {
   const hueLights = {};
 
-  Object.entries(lights).forEach(([id, light]) => {
-    const hueLight = {
-      ...dummy.getLights()['1'],
-    };
+  luminaires.forEach(luminaire => {
+    luminaire.lights.forEach((light, index) => {
+      const hueLight = {
+        ...dummy.getLights()['1'],
+      };
 
-    hueLight.name = light.name;
-    hueLight.uniqueid = id;
+      const postfix = luminaire.lights.length > 1 ? `(#${index})` : '';
 
-    const { r, g, b } = light.state[0];
-    const [x, y, Y] = convert.rgb.xyY.raw(r, g, b);
-    console.log(x, y, Y);
-    hueLight.state.xy = [x, y];
-    hueLight.state.bri = Y * 2.55;
+      hueLight.name = luminaire.name + postfix;
+      hueLight.uniqueid = luminaire.id + postfix;
 
-    // TODO: id clashes?
-    hueLights[id] = hueLight;
+      const { r, g, b } = light.state;
+      const [x, y, Y] = convert.rgb.xyY.raw(r, g, b);
+
+      hueLight.state.xy = [x, y];
+      hueLight.state.bri = Math.round(Y * 2.55);
+      hueLight.state.colormode = 'xy';
+
+      hueLights[hueLight.uniqueid] = hueLight;
+    });
   });
 
   return hueLights;
 };
 
-const fromHueLights = hueLights => {
-  const lights = [];
-
-  Object.entries(hueLights).forEach(([id, hueLight]) => {
-    lights.push({
-      id,
-      state: [getColor(hueLight)],
-    });
-  });
-
-  return lights;
+const fromHueLight = hueLight => {
+  return getColor(hueLight);
 };
 
 exports.initApi = async (server, hueConfig) => {
@@ -90,29 +85,28 @@ exports.initApi = async (server, hueConfig) => {
     method: 'get',
     path: '/api/{username}/lights',
     //handler: () => dummy.getLights(hueConfig),
-    handler: () => {
-      const lights = toHueLights(getLights());
-
-      return lights;
-    },
+    handler: () => toHueLights(getLuminaires()),
   });
   server.route({
     method: 'put',
     path: '/api/{username}/lights/{lightId}/state',
     //handler: () => dummy.getLights(hueConfig),
     handler: req => {
-      const lights = toHueLights(getLights());
+      const hueLights = toHueLights(getLuminaires());
 
-      lights[req.params.lightId].state = {
-        ...lights[req.params.lightId].state,
+      // TODO: multilight luminaire support
+      let luminaireId = req.params.lightId;
+      let lightId = 0;
+
+      const hueLight = hueLights[req.params.lightId];
+
+      // Merge old light with new values
+      hueLight.state = {
+        ...hueLight.state,
         ...req.payload,
       };
 
-      setLights(
-        fromHueLights({
-          [req.params.lightId]: lights[req.params.lightId],
-        }),
-      );
+      setLight(luminaireId, lightId, fromHueLight(hueLight));
 
       return dummy.setLightSuccess(req.params.lightId, req.payload);
     },
@@ -125,10 +119,10 @@ exports.initApi = async (server, hueConfig) => {
     handler: req => {
       const groups = dummy.getGroups(hueConfig);
 
-      console.log(groups);
+      const hueLights = toHueLights(getLuminaires());
 
       // Just spam all existing lights into the first group... for now?
-      groups['1'].lights = Object.keys(getLights());
+      groups['1'].lights = Object.keys(hueLights);
 
       return groups;
     },

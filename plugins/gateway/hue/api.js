@@ -6,7 +6,7 @@
 
 const dummy = require('../../api/hue/dummy');
 const request = require('request-promise-native');
-const { setLights } = require('../../../src/lights');
+const { registerLuminaire } = require('../../../src/lights');
 const { getColor } = require('./utils');
 
 let lights = {};
@@ -20,9 +20,10 @@ const fromHueLights = hueLights => {
 
   Object.entries(hueLights).forEach(([id, hueLight]) => {
     lights.push({
-      id: `hue/${id}`,
+      id,
+      gateway: 'hue',
       name: hueLight.name,
-      state: [getColor(hueLight)],
+      initialStates: [getColor(hueLight)],
     });
   });
 
@@ -117,8 +118,7 @@ exports.initApi = async (server, hueConfig) => {
     console.log('hue-api: cached existing rules');
   }
 
-  setLights(fromHueLights(lights));
-  //setLights();
+  fromHueLights(lights).forEach(registerLuminaire);
 
   // TODO: wat do about these
   server.event('getSensors');
