@@ -45,12 +45,10 @@ const toHueLights = luminaires => {
       hueLight.name = luminaire.name + postfix;
       hueLight.uniqueid = luminaire.id + postfix;
 
-      const { r, g, b } = light.state;
-      const [x, y, Y] = convert.rgb.xyY.raw(r, g, b);
+      const [x, y, Y] = light.state.xyY;
 
       hueLight.state.xy = [x, y];
       hueLight.state.bri = Math.round(Y * 2.55);
-      hueLight.state.colormode = 'xy';
 
       hueLights[hueLight.uniqueid] = hueLight;
     });
@@ -113,6 +111,12 @@ exports.initApi = async (server, hueConfig) => {
         ...hueLight.state,
         ...req.payload,
       };
+
+      if (req.payload.xy) {
+        hueLight.state.colormode = 'xy';
+      } else if (req.payload.ct) {
+        hueLight.state.colormode = 'ct';
+      }
 
       setLight(luminaireId, lightId, fromHueLight(hueLight));
 

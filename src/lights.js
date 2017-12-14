@@ -2,6 +2,7 @@
  * lights
  */
 
+const convert = require('color-convert');
 const request = require('request-promise-native');
 const forEach = require('lodash/forEach');
 
@@ -14,7 +15,7 @@ let server;
 
 const dispatchChanges = () => {
   state.willDispatch = false;
-  console.log('dispatching changes:', state.changesToDispatch);
+  console.log('dispatching changes:', JSON.stringify(state.changesToDispatch));
 
   // TODO: merge / get rid of potential duplicates?
   state.changesToDispatch.forEach(luminaire =>
@@ -25,25 +26,11 @@ const dispatchChanges = () => {
 };
 
 class Light {
-  constructor(parentLuminaire, initialState) {
+  constructor(parentLuminaire, initialState = { rgb: [255, 255, 255] }) {
     this.parentLuminaire = parentLuminaire;
 
-    if (initialState) {
-      this.state = {
-        r: initialState.r,
-        g: initialState.g,
-        b: initialState.b,
-      };
-
-      this.prevState = {
-        r: initialState.r,
-        g: initialState.g,
-        b: initialState.b,
-      };
-    } else {
-      this.state = { r: 255, g: 255, b: 255 };
-      this.prevState = { r: 255, g: 255, b: 255 };
-    }
+    this.state = this.convertAll(initialState);
+    this.prevState = this.convertAll(initialState);
 
     this.transitionStart = new Date().getTime();
     this.transitionEnd = new Date().getTime();
@@ -56,15 +43,29 @@ class Light {
     };
   }
 
+  convertAll(lightState) {
+    const colorModes = {};
+
+    Object.entries(lightState).forEach(([colorMode, values]) => {
+      colorModes[colorMode] = values;
+
+      const shouldConvert = ['rgb', 'xyY', 'ct', 'hsv'].filter(
+        mode => mode !== colorMode,
+      );
+
+      shouldConvert.forEach(
+        mode => (colorModes[mode] = convert[colorMode][mode].raw(values)),
+      );
+    });
+
+    return colorModes;
+  }
+
   setState(nextState) {
     // TODO: handle ongoing transition
     this.prevState = this.state;
 
-    this.state = {
-      r: nextState.r || 0,
-      g: nextState.g || 0,
-      b: nextState.b || 0,
-    };
+    this.state = this.convertAll(nextState);
 
     this.transitionStart = new Date().getTime();
     this.transitionEnd =
