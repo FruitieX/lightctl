@@ -36,13 +36,6 @@ class Light {
     this.transitionEnd = new Date().getTime();
   }
 
-  toJSON() {
-    return {
-      state: this.state,
-      transitionTime: this.transitionEnd - this.transitionStart,
-    };
-  }
-
   convertAll(lightState) {
     const colorModes = {};
 
@@ -59,6 +52,18 @@ class Light {
     });
 
     return colorModes;
+  }
+
+  getState(colorMode = 'rgb') {
+    // TODO: handle ongoing transition
+    return {
+      state: this.state[colorMode],
+      transitionTime: this.transitionEnd - this.transitionStart,
+    };
+  }
+
+  toJSON() {
+    return this.getState();
   }
 
   setState(nextState) {

@@ -45,7 +45,7 @@ const toHueLights = luminaires => {
       hueLight.name = luminaire.name + postfix;
       hueLight.uniqueid = luminaire.id + postfix;
 
-      const [x, y, Y] = light.state.xyY;
+      const [x, y, Y] = light.getState('xyY').state;
 
       hueLight.state.xy = [x, y];
       hueLight.state.bri = Math.round(Y * 2.55);
