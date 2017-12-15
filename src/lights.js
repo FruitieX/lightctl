@@ -55,10 +55,32 @@ class Light {
   }
 
   getState(colorMode = 'rgb') {
-    // TODO: handle ongoing transition
+    // Calculate current state from transition times
+    let q = 1;
+
+    if (this.transitionEnd !== this.transitionStart) {
+      q = Math.max(
+        0,
+        Math.min(
+          1,
+          (new Date().getTime() - this.transitionStart) /
+            (this.transitionEnd - this.transitionStart),
+        ),
+      );
+    }
+
+    const state = this.state[colorMode];
+    const prevState = this.prevState[colorMode];
+
+    const currentState = state.map((value, index) => {
+      const prevValue = prevState[index];
+
+      return prevValue * (1 - q) + value * q;
+    });
+
     return {
-      state: this.state[colorMode],
-      transitionTime: this.transitionEnd - this.transitionStart,
+      state: currentState,
+      transitionTime: Math.max(0, this.transitionEnd - this.transitionStart),
     };
   }
 
@@ -67,9 +89,7 @@ class Light {
   }
 
   setState(nextState) {
-    // TODO: handle ongoing transition
-    this.prevState = this.state;
-
+    this.prevState = this.convertAll({ rgb: this.getState().state });
     this.state = this.convertAll(nextState);
 
     this.transitionStart = new Date().getTime();
