@@ -1,4 +1,3 @@
-//const { miredToRgb, xyToRgb } = require('../../../src/utils');
 const convert = require('color-convert');
 
 exports.black = { rgb: [0, 0, 0] };
