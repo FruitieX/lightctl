@@ -38,18 +38,20 @@ class Light {
 
   convertAll(lightState) {
     const colorModes = {};
+    const supportedModes = ['rgb', 'xyY', 'ct', 'hsv'];
 
-    Object.entries(lightState).forEach(([colorMode, values]) => {
-      colorModes[colorMode] = values;
+    const fromMode = Object.keys(lightState).find(key =>
+      supportedModes.includes(key),
+    );
 
-      const shouldConvert = ['rgb', 'xyY', 'ct', 'hsv'].filter(
-        mode => mode !== colorMode,
-      );
+    colorModes[fromMode] = lightState[fromMode];
 
-      shouldConvert.forEach(
-        mode => (colorModes[mode] = convert[colorMode][mode].raw(values)),
-      );
-    });
+    const shouldConvert = supportedModes.filter(mode => mode !== fromMode);
+
+    shouldConvert.forEach(
+      mode =>
+        (colorModes[mode] = convert[fromMode][mode].raw(lightState[fromMode])),
+    );
 
     return colorModes;
   }
@@ -79,7 +81,8 @@ class Light {
     });
 
     return {
-      state: currentState,
+      currentState,
+      nextState: state,
       transitionTime: Math.max(0, this.transitionEnd - this.transitionStart),
     };
   }
@@ -89,7 +92,7 @@ class Light {
   }
 
   setState(nextState) {
-    this.prevState = this.convertAll({ rgb: this.getState().state });
+    this.prevState = this.convertAll({ rgb: this.getState().currentState });
     this.state = this.convertAll(nextState);
 
     this.transitionStart = new Date().getTime();

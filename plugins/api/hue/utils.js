@@ -7,7 +7,7 @@ exports.black = { rgb: [0, 0, 0] };
 exports.getColor = lamp => {
   let lampColor;
 
-  if (!lamp.state.on) {
+  if (lamp.state.on === false) {
     lampColor = exports.black;
   } else if (lamp.state.colormode === 'ct') {
     lampColor = { ct: convert.mired.ct.raw(lamp.state.ct) };

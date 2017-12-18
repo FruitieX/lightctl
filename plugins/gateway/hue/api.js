@@ -31,7 +31,17 @@ const fromHueLights = hueLights => {
 };
 
 exports.initApi = async (server, hueConfig) => {
+  const makeRequest = fields => {
+    if (hueConfig.dummy) {
+      return console.log('hue-gateway: Would make request:', fields);
+    } else {
+      return request(fields);
+    }
+  };
+
   if (hueConfig.dummy) {
+    hueConfig.bridgeAddr = 'hue-bridge-addr';
+
     lights = dummy.getLights();
     groups = dummy.getGroups();
     scenes = dummy.getScenes();
@@ -47,6 +57,7 @@ exports.initApi = async (server, hueConfig) => {
     }
 
     // "Catch-all" route
+    /*
     server.route({
       method: '*',
       path: '/{p*}',
@@ -66,6 +77,7 @@ exports.initApi = async (server, hueConfig) => {
         return response;
       },
     });
+    */
 
     // Discover existing lights
     lights = await request({
@@ -118,6 +130,7 @@ exports.initApi = async (server, hueConfig) => {
     console.log('hue-api: cached existing rules');
   }
 
+  // Register all lights
   fromHueLights(lights).forEach(registerLuminaire);
 
   // TODO: wat do about these
@@ -129,4 +142,49 @@ exports.initApi = async (server, hueConfig) => {
   server.events.on('getScenes', promises => promises.push(scenes));
   server.events.on('getSensors', promises => promises.push(sensors));
   server.events.on('getRules', promises => promises.push(rules));
+
+  server.events.on('luminaireUpdate', luminaire => {
+    // Ignore non-Hue luminaires
+    if (luminaire.gateway !== 'hue') {
+      return;
+    }
+
+    const state = luminaire.lights[0].getState('xyY');
+    const body = {};
+
+    const [x, y, Y] = state.nextState;
+
+    if (Y === 0) {
+      // We assume brightness 0 is darkness (unlike Hue)
+      body.on = false;
+    } else {
+      // TODO: must cache many of these fields and prevent sending dupes
+      body.on = true;
+
+      body.bri = Math.round(Y * 2.55);
+      body.xy = [x, y];
+
+      // Hue counts time as multiples of 100 ms...
+      body.transitiontime = Math.round(state.transitionTime / 100);
+
+      // 400 ms is the default, avoid sending it as an optimisation
+      if (body.transitiontime === 4) {
+        delete body.transitiontime;
+      }
+    }
+
+    console.log('body:', body);
+
+    // Hue bulbs are represented by single-light luminaires
+    makeRequest({
+      url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/lights/${
+        luminaire.id
+      }/state`,
+      method: 'PUT',
+      body,
+      json: true,
+      timeout: 1000,
+    });
+    //server.publish(`/luminaires/${luminaire.id}`, luminaire.lights);
+  });
 };

@@ -45,7 +45,7 @@ const toHueLights = luminaires => {
       hueLight.name = luminaire.name + postfix;
       hueLight.uniqueid = luminaire.id + postfix;
 
-      const [x, y, Y] = light.getState('xyY').state;
+      const [x, y, Y] = light.getState('xyY').currentState;
 
       hueLight.state.xy = [x, y];
       hueLight.state.bri = Math.round(Y * 2.55);
@@ -55,10 +55,6 @@ const toHueLights = luminaires => {
   });
 
   return hueLights;
-};
-
-const fromHueLight = hueLight => {
-  return getColor(hueLight);
 };
 
 exports.initApi = async (server, hueConfig) => {
@@ -106,19 +102,33 @@ exports.initApi = async (server, hueConfig) => {
 
       const hueLight = hueLights[req.params.lightId];
 
-      // Merge old light with new values
-      hueLight.state = {
-        ...hueLight.state,
-        ...req.payload,
-      };
+      // Toggle power
+      if (req.payload.on !== undefined) {
+        hueLight.state.on = req.payload.on;
+      }
 
+      // Brightness
+      if (req.payload.bri) {
+        hueLight.state.bri = req.payload.bri;
+      }
+
+      // Colors
       if (req.payload.xy) {
+        hueLight.state.xy = req.payload.xy;
         hueLight.state.colormode = 'xy';
       } else if (req.payload.ct) {
+        hueLight.state.ct = req.payload.ct;
         hueLight.state.colormode = 'ct';
       }
 
-      setLight(luminaireId, lightId, fromHueLight(hueLight));
+      const state = getColor(hueLight);
+
+      // Transition time defaults to 400. Note that Hue transitiontime uses multiples of 100ms
+      state.transitionTime = Number.isInteger(req.payload.transitiontime)
+        ? req.payload.transitiontime * 100
+        : 400;
+
+      setLight(luminaireId, lightId, state);
 
       return dummy.setLightSuccess(req.params.lightId, req.payload);
     },

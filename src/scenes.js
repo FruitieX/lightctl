@@ -9,6 +9,13 @@ const findKey = require('lodash/findKey');
 let refreshTimeout = null;
 let scenes = {};
 
+class Scene {
+  constructor(name, luminaires) {
+    this.name = name;
+    this.luminaires = luminaires;
+  }
+}
+
 const findActiveSceneId = () => {
   for (const sceneId in scenes) {
     if (scenes[sceneId].active) return sceneId;
