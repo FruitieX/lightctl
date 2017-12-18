@@ -10,7 +10,9 @@ exports.getColor = lamp => {
   if (lamp.state.on === false) {
     lampColor = exports.black;
   } else if (lamp.state.colormode === 'ct') {
-    lampColor = { ct: convert.mired.ct.raw(lamp.state.ct) };
+    lampColor = {
+      ct: convert.mired.ct.raw(lamp.state.ct, lamp.state.bri / 2.55),
+    };
   } else if (lamp.state.colormode === 'xy') {
     lampColor = { xyY: [...lamp.state.xy, lamp.state.bri / 2.55] };
   } else {

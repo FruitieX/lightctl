@@ -1,4 +1,3 @@
-//const { miredToRgb, xyToRgb } = require('../../../src/utils');
 const convert = require('color-convert');
 
 exports.black = { rgb: [0, 0, 0] };
@@ -7,10 +6,12 @@ exports.black = { rgb: [0, 0, 0] };
 exports.getColor = lamp => {
   let lampColor;
 
-  if (!lamp.state.on) {
+  if (lamp.state.on === false) {
     lampColor = exports.black;
   } else if (lamp.state.colormode === 'ct') {
-    lampColor = { ct: convert.mired.ct.raw(lamp.state.ct) };
+    lampColor = {
+      ct: convert.mired.ct.raw(lamp.state.ct, lamp.state.bri / 2.55),
+    };
   } else if (lamp.state.colormode === 'xy') {
     lampColor = { xyY: [...lamp.state.xy, lamp.state.bri / 2.55] };
   } else {
