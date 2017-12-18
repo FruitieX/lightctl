@@ -20,9 +20,8 @@ const fromHueLights = hueLights => {
 
   Object.entries(hueLights).forEach(([id, hueLight]) => {
     lights.push({
-      id,
+      id: hueLight.name,
       gateway: 'hue',
-      name: hueLight.name,
       initialStates: [getColor(hueLight)],
     });
   });
@@ -149,6 +148,16 @@ exports.initApi = async (server, hueConfig) => {
       return;
     }
 
+    const result = Object.entries(lights).find(
+      ([lightId, hueLight]) => hueLight.name === luminaire.id,
+    );
+
+    if (!result) {
+      console.log('hue-api: Unknown light id', luminaire.id);
+      return;
+    }
+
+    const lightId = result[0];
     const state = luminaire.lights[0].getState('xyY');
     const body = {};
 
@@ -178,7 +187,7 @@ exports.initApi = async (server, hueConfig) => {
     // Hue bulbs are represented by single-light luminaires
     makeRequest({
       url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/lights/${
-        luminaire.id
+        lightId
       }/state`,
       method: 'PUT',
       body,

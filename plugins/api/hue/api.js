@@ -42,7 +42,7 @@ const toHueLights = luminaires => {
 
       const postfix = luminaire.lights.length > 1 ? ` (#${index + 1})` : '';
 
-      hueLight.name = luminaire.name + postfix;
+      hueLight.name = luminaire.id + postfix;
       hueLight.uniqueid = luminaire.id + postfix;
 
       const [x, y, Y] = light.getState('xyY').currentState;

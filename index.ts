@@ -40,9 +40,18 @@ const initServer = async () => {
   // Load all core plugins
   try {
     await server.register([
-      require('./src/scenes'),
-      require('./src/lights'),
-      require('./src/groups'),
+      {
+        plugin: require('./src/scenes'),
+        options: config.scenes,
+      },
+      {
+        plugin: require('./src/lights'),
+        options: config.lights, // unused
+      },
+      {
+        plugin: require('./src/groups'),
+        options: config.groups,
+      },
     ]);
   } catch (e) {
     console.log('Error while registering core plugins:', e);

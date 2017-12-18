@@ -111,15 +111,13 @@ class Light {
 
 class Luminaire {
   constructor({
-    id = 'N/A',
+    id = 'Unnamed Light',
     gateway = 'unknown',
-    name = 'Unnamed Light',
     numLights = 1,
     initialStates = [],
   }) {
     this.id = id;
     this.gateway = gateway;
-    this.name = name;
     this.lights = [...Array(numLights)].map(
       (_, index) => new Light(this, initialStates[index]),
     );
