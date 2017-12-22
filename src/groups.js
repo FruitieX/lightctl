@@ -1,51 +1,52 @@
-/*
- * groups
- */
-
 let groups = {};
-let lights = {};
 
-const setGroup = server => ({ groupId, ...payload }) => {
-  const group = groups[groupId];
+const register = async (server, options) => {
+  groups = options;
 
-  let groupLights = [];
+  server.events.on('luminaireDidRegister', luminaire => {
+    // Insert newly registered luminaire to any groups it belongs to
+    Object.entries(groups).forEach(([groupId, group]) => {
+      groups[groupId] = group.map(groupLuminaire => {
+        // If groupLuminaire is still a string, test if this luminaire should replace it
+        if (
+          typeof groupLuminaire === 'string' &&
+          groupLuminaire === luminaire.id
+        ) {
+          return luminaire;
+        }
 
-  if (group) {
-    groupLights = group.lights;
-  } else {
-    // default to all lights
-    groupLights = Object.keys(lights);
-  }
-
-  groupLights.forEach(lightId =>
-    server.events.emit('setLight', {
-      lightId,
-      payload,
-    }),
-  );
-
-  server.events.emit('setScene', {
-    sceneId: 'null',
+        // Otherwise don't modify groupLuminaire
+        return groupLuminaire;
+      });
+    });
   });
 };
 
-const register = async function(server, options) {
-  server.events.on('start', async () => {
-    // Discover existing lights
-    //lights = await server.emitAwait('getLights');
+const groupExists = groupId => !!groups[groupId];
 
-    // Discover existing groups
-    groups = await server.emitAwait('getGroups');
+const getGroup = groupId => {
+  let result = [];
 
-    server.events.on('setGroup', setGroup(server));
+  const group = groups[groupId];
+
+  if (!group) {
+    return console.log('Group not found with groupId', groupId);
+  }
+
+  // Return only luminaires which have registered
+  group.forEach(groupLuminaire => {
+    if (typeof groupLuminaire !== 'string') {
+      result.push(groupLuminaire);
+    }
   });
 
-  server.event({ name: 'getGroups', clone: true });
-  server.event('setGroup');
+  return result;
 };
 
 module.exports = {
   name: 'groups',
   version: '1.0.0',
   register,
+  getGroup,
+  groupExists,
 };

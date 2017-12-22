@@ -1,114 +1,85 @@
-/*
- * scenes
- */
+const { getGroup, groupExists } = require('./groups');
+const { getLuminaire } = require('./lights');
 
-const forEach = require('lodash/forEach');
-const cloneDeep = require('lodash/cloneDeep');
-const findKey = require('lodash/findKey');
-
-let refreshTimeout = null;
 let scenes = {};
+let prevScene = null;
+let activeScene = null;
 
-class Scene {
-  constructor(name, luminaires) {
-    this.name = name;
-    this.luminaires = luminaires;
-  }
-}
-
-const findActiveSceneId = () => {
-  for (const sceneId in scenes) {
-    if (scenes[sceneId].active) return sceneId;
-  }
+const register = async (server, options) => {
+  scenes = options;
 };
 
-const refresh = () => {
-  const sceneId = findKey(scenes, scene => scene.active);
+const getScenes = () => scenes;
+const getScene = sceneId => scenes[sceneId];
 
-  setScene({ sceneId });
-};
-
-const setScene = (server, options, activated) => async ({ sceneId }) => {
-  clearTimeout(refreshTimeout);
-  const prevSceneId = findActiveSceneId();
-
-  // Deactivate previous scene if not equal to this scene
-  let prevScene = scenes[prevSceneId];
-  if (prevScene && prevSceneId !== sceneId) {
-    prevScene.active = false;
-  }
-
-  if (!sceneId || sceneId === 'null') {
-    return;
-  }
-
-  let scene = scenes[sceneId];
-  scene.active = true;
-
-  scene = cloneDeep(scene);
-
-  // Allow scene middleware to modify scene before applying it
-  await new Promise(resolve =>
-    server.events.emit(
-      'sceneMiddleware',
-      { prevScene, prevSceneId, scene, sceneId, activated },
-      resolve,
-    ),
-  );
-
-  console.log('setScene()', scene.lightstates);
-  for (const lightId in scene.lightstates) {
-    server.events.emit('setLight', {
-      lightId,
-      payload: scene.lightstates[lightId],
-    });
-  }
-
-  refreshTimeout = setTimeout(refresh, options.refreshInterval || 60 * 1000);
-};
-
-const modifyScene = (server, options) => ({ sceneId, payload }) => {
-  scenes[sceneId] = {
-    ...scenes[sceneId],
-    ...payload,
-  };
-
+const getSceneCmds = sceneId => {
   const scene = scenes[sceneId];
-
-  if (scene.active) {
-    setScene(server, options)({ sceneId });
+  if (!scene) {
+    return console.log('No scene found with sceneId', sceneId);
   }
-};
 
-const register = async function(server, options) {
-  // TODO: scene discovery (plugins should do this, and we should support updates)
-  /*
-  // Discover existing scenes
-  scenes = await server.emitAwait('getScenes');
+  const sceneCmds = [];
+  Object.entries(scene).forEach(([sceneGroupId, cmds]) => {
+    if (groupExists(sceneGroupId)) {
+      const group = getGroup(sceneGroupId);
+      group.forEach((luminaire, index) => {
+        const sceneCmd = {};
+        sceneCmd.luminaire = luminaire;
 
-  // Mark each scene as inactive
-  forEach(scenes, scene => (scene.active = false));
+        if (!Array.isArray(cmds)) {
+          sceneCmd.cmd = cmds;
+        } else if (cmds.length === 1) {
+          sceneCmd.cmd = cmds[0];
+        } else {
+          // TODO: this is a weird case to support
+          sceneCmd.cmd = cmds[index];
+        }
 
-  server.expose('scenes', cloneDeep(scenes));
-  */
+        sceneCmds.push(sceneCmd);
+      });
+    } else {
+      const luminaire = getLuminaire(sceneGroupId);
 
-  server.events.on('start', () => {
-    server.events.on('setScene', setScene(server, options, true));
-    server.events.on('refreshScene', () =>
-      setScene(server, options)({ sceneId: findActiveSceneId() }),
-    );
-    server.events.on('modifyScene', modifyScene(server, options));
+      const sceneCmd = {};
+
+      sceneCmd.luminaire = luminaire;
+      sceneCmd.cmd = cmds;
+
+      sceneCmds.push(sceneCmd);
+    }
   });
 
-  server.event({ name: 'getScenes', clone: true });
-  server.event({ name: 'setScene', clone: true });
-  server.event({ name: 'modifyScene', clone: true });
-  server.event('refreshScene');
-  server.event('sceneMiddleware');
+  return sceneCmds;
+};
+
+const activateScene = sceneId => {
+  console.log('activateScene', sceneId);
+
+  const scene = scenes[sceneId];
+  if (!scene) {
+    return console.log('No scene found with sceneId', sceneId);
+  }
+
+  prevScene = activeScene;
+  activeScene = sceneId;
+
+  const sceneCmds = getSceneCmds(sceneId);
+
+  sceneCmds.forEach(({ luminaire, cmd }) => {
+    if (Array.isArray(cmd)) {
+      cmd.forEach((state, index) => luminaire.lights[index].setState(state));
+    } else {
+      luminaire.lights.forEach(light => light.setState(cmd));
+    }
+  });
 };
 
 module.exports = {
   name: 'scenes',
   version: '1.0.0',
   register,
+  getScenes,
+  getScene,
+  getSceneCmds,
+  activateScene,
 };

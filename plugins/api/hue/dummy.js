@@ -8,10 +8,12 @@ exports.setLightSuccess = (lightId, values) => {
   return [{ success }];
 };
 
+exports.setSuccess = entities => [{ success: entities }];
+
 exports.getScenes = () => ({
   '1Y-uBXA0TK6gwnU': {
     appdata: {
-      data: 'WQbuq_r01',
+      data: 'QSQnK_r01_d99',
       version: 1,
     },
     lastupdated: '2017-09-24T11:20:16',
@@ -27,7 +29,7 @@ exports.getScenes = () => ({
 
 exports.getScene = () => ({
   appdata: {
-    data: 'WQbuq_r01',
+    data: 'QSQnK_r01_d99',
     version: 1,
   },
   lastupdated: '2017-09-24T11:20:16',

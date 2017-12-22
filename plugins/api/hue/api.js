@@ -7,7 +7,13 @@
 const convert = require('color-convert');
 const dummy = require('./dummy');
 const request = require('request-promise-native');
-const { getLuminaires, setLight } = require('../../../src/lights');
+const { getLuminaires, setLight, Luminaire } = require('../../../src/lights');
+const {
+  activateScene,
+  getScenes,
+  getScene,
+  getSceneCmds,
+} = require('../../../src/scenes');
 const { getColor } = require('./utils');
 //const { rgbToXy } = require('../../../src/utils');
 
@@ -58,6 +64,91 @@ const toHueLights = luminaires => {
   return hueLights;
 };
 
+const getHueScenes = () => {
+  const scenes = { ...getScenes() };
+
+  Object.entries(scenes).forEach(([sceneId, scene]) => {
+    scenes[sceneId] = {
+      ...dummy.getScene(),
+    };
+
+    scenes[sceneId].name = sceneId;
+    // TODO: multisource
+    scenes[sceneId].lights = [];
+
+    getSceneCmds(sceneId).forEach(({ luminaire }) => {
+      const hueLights = toHueLights([luminaire]);
+      Object.keys(hueLights).forEach(lightId =>
+        scenes[sceneId].lights.push(lightId),
+      );
+    });
+
+    // Scene list does not contain lightstates
+    delete scenes[sceneId].lightstates;
+  });
+
+  return scenes;
+};
+
+const getHueScene = sceneId => {
+  const scene = getScene(sceneId);
+
+  if (!scene) {
+    return null;
+  }
+
+  const hueScene = { ...dummy.getScene() };
+  const sceneCmds = getSceneCmds(sceneId);
+
+  hueScene.name = sceneId;
+  hueScene.lights = [];
+  hueScene.lightstates = {};
+
+  sceneCmds.forEach(({ luminaire, cmd }) => {
+    const hueLights = toHueLights([luminaire]);
+    console.log('cmd', cmd);
+    const cmdLuminaire = new Luminaire({
+      numLights: cmd.length || 1,
+      initialStates: Array.isArray(cmd) ? cmd : [cmd],
+    });
+
+    console.log(cmdLuminaire);
+    Object.keys(hueLights).forEach((lightId, index) => {
+      hueScene.lights.push(lightId);
+
+      if (cmdLuminaire.lights.length === 1) {
+        index = 0;
+      }
+
+      const [x, y] = cmdLuminaire.lights[index].getState('xyY').currentState;
+      const bri = cmdLuminaire.lights[index].getState('hsv').currentState[2];
+
+      hueScene.lightstates[lightId] = {
+        bri: Math.round(bri * 2.55),
+        on: !!bri, // TODO
+        xy: [x, y],
+      };
+    });
+  });
+
+  return hueScene;
+};
+
+const getHueLights = () => toHueLights(getLuminaires());
+
+const getHueGroups = () => {
+  const groups = dummy.getGroups();
+
+  const hueLights = toHueLights(getLuminaires());
+  // console.log(hueLights);
+  // console.log(JSON.stringify(getLuminaires()));
+
+  // Just spam all existing lights into the first group... for now?
+  groups['1'].lights = Object.keys(hueLights);
+
+  return groups;
+};
+
 exports.initApi = async (server, hueConfig) => {
   server.route({
     method: 'post',
@@ -68,7 +159,16 @@ exports.initApi = async (server, hueConfig) => {
   server.route({
     method: 'get',
     path: '/api/{username}',
-    handler: () => dummy.getAllAuthenticated(hueConfig),
+    handler: () => ({
+      lights: getHueLights(),
+      groups: getHueGroups(),
+      config: dummy.getConfigAuthenticated(hueConfig),
+      schedules: dummy.getSchedules(hueConfig),
+      scenes: getHueScenes(),
+      rules: dummy.getRules(hueConfig),
+      sensors: dummy.getSensors(hueConfig),
+      resourcelinks: dummy.getResourcelinks(hueConfig),
+    }),
   });
 
   server.route({
@@ -81,7 +181,7 @@ exports.initApi = async (server, hueConfig) => {
     method: 'get',
     path: '/api/{username}/lights',
     //handler: () => dummy.getLights(hueConfig),
-    handler: () => toHueLights(getLuminaires()),
+    handler: getHueLights,
   });
   server.route({
     method: 'put',
@@ -139,31 +239,36 @@ exports.initApi = async (server, hueConfig) => {
     method: 'get',
     path: '/api/{username}/groups',
     // handler: () => dummy.getGroups(hueConfig),
-    handler: req => {
-      const groups = dummy.getGroups(hueConfig);
-
-      const hueLights = toHueLights(getLuminaires());
-      // console.log(hueLights);
-      // console.log(JSON.stringify(getLuminaires()));
-
-      // Just spam all existing lights into the first group... for now?
-      groups['1'].lights = Object.keys(hueLights);
-
-      return groups;
-    },
+    handler: getHueGroups,
   });
 
   server.route({
     method: 'get',
     path: '/api/{username}/scenes',
-    handler: () => dummy.getScenes(hueConfig),
+    handler: getHueScenes,
   });
 
   server.route({
-    method: 'get',
-    path: '/api/{username}/scenes/{sceneId}',
-    handler: () => dummy.getScene(hueConfig),
-  });
+    method: 'put',
+    path: '/api/{username}/groups/{groupId}/action',
+    //handler: () => dummy.getLights(hueConfig),
+    handler: req => {
+      if (req.payload.scene) {
+        activateScene(req.payload.scene);
+        return dummy.setSuccess({
+          [`/groups/${req.params.groupId}/action/scene`]: req.payload.scene,
+        });
+      } else if (req.payload.on !== undefined) {
+      } else {
+        console.log('Unhandled group action', req.payload);
+      }
+    },
+  }),
+    server.route({
+      method: 'get',
+      path: '/api/{username}/scenes/{sceneId}',
+      handler: req => getHueScene(req.params.sceneId), //(req) => dummy.getScene(hueConfig),
+    });
 
   server.route({
     method: 'get',

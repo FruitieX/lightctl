@@ -6,7 +6,7 @@
 
 const dummy = require('../../api/hue/dummy');
 const request = require('request-promise-native');
-const { registerLuminaire } = require('../../../src/lights');
+const { luminaireRegister } = require('../../../src/lights');
 const { getColor } = require('./utils');
 
 let lights = {};
@@ -130,17 +130,17 @@ exports.initApi = async (server, hueConfig) => {
   }
 
   // Register all lights
-  fromHueLights(lights).forEach(registerLuminaire);
+  fromHueLights(lights).forEach(luminaireRegister);
 
   // TODO: wat do about these
   server.event('getSensors');
   server.event('getRules');
 
-  server.events.on('getGroups', promises => promises.push(groups));
+  //server.events.on('getGroups', promises => promises.push(groups));
   //server.events.on('getLights', promises => promises.push(lights));
-  server.events.on('getScenes', promises => promises.push(scenes));
-  server.events.on('getSensors', promises => promises.push(sensors));
-  server.events.on('getRules', promises => promises.push(rules));
+  //server.events.on('getScenes', promises => promises.push(scenes));
+  //server.events.on('getSensors', promises => promises.push(sensors));
+  //server.events.on('getRules', promises => promises.push(rules));
 
   server.events.on('luminaireUpdate', luminaire => {
     // Ignore non-Hue luminaires

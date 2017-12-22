@@ -124,14 +124,18 @@ class Luminaire {
   }
 }
 
-const registerLuminaire = fields => {
+const luminaireRegister = fields => {
   if (state.luminaires.find(luminaire => luminaire.id === fields.id)) {
-    return console.log('Error: registerLuminaire() with already existing id!');
+    return console.log('Error: luminaireRegister() with already existing id!');
   }
 
-  console.log('registerLuminaire():', JSON.stringify(fields));
+  console.log('luminaireRegister():', JSON.stringify(fields));
 
-  state.luminaires.push(new Luminaire(fields));
+  const luminaire = new Luminaire(fields);
+  console.log('created luminaire:', JSON.stringify(luminaire));
+  state.luminaires.push(luminaire);
+
+  server.events.emit('luminaireDidRegister', luminaire);
 };
 
 const setLight = (luminaireId, lightId, fields) => {
@@ -172,7 +176,7 @@ const setLight = (luminaireId, lightId, fields) => {
 const getLuminaires = () => state.luminaires;
 
 const getLuminaire = luminaireId =>
-  state.luminaire.find(luminaire => luminaire.id === luminaireId);
+  state.luminaires.find(luminaire => luminaire.id === luminaireId);
 
 const getLight = (luminaireId, lightId) => {
   const luminaire = getLuminaire(luminaireId);
@@ -202,7 +206,9 @@ const register = async function(_server, options) {
   });
 
   server.event({ name: 'luminaireUpdate', clone: true });
-  server.event({ name: 'registerLuminaires', clone: true });
+  server.event({ name: 'luminaireDidUpdate', clone: true });
+  server.event({ name: 'luminaireRegister', clone: true });
+  server.event({ name: 'luminaireDidRegister', clone: true });
   server.event({ name: 'removeLights', clone: true });
   server.event({ name: 'setLights', clone: true });
   // server.event({ name: 'lightChanged', clone: true });
@@ -216,5 +222,6 @@ module.exports = {
   getLuminaire,
   getLight,
   setLight,
-  registerLuminaire,
+  luminaireRegister,
+  Luminaire,
 };

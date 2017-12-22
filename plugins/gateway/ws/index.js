@@ -1,5 +1,5 @@
 const Nes = require('nes');
-const { registerLuminaire } = require('../../../src/lights');
+const { luminaireRegister } = require('../../../src/lights');
 
 const register = async function(server, options) {
   await server.register(Nes);
@@ -15,7 +15,7 @@ const register = async function(server, options) {
     config: {
       id: 'register',
       handler: (req, h) => {
-        registerLuminaire({
+        luminaireRegister({
           ...req.payload,
           id: req.payload.id,
           gateway: 'ws',
