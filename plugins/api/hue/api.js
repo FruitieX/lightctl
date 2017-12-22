@@ -45,10 +45,11 @@ const toHueLights = luminaires => {
       hueLight.name = luminaire.id + postfix;
       hueLight.uniqueid = luminaire.id + postfix;
 
+      const bri = light.getState('hsv').currentState[2];
       const [x, y, Y] = light.getState('xyY').currentState;
 
       hueLight.state.xy = [x, y];
-      hueLight.state.bri = Math.round(Y * 2.55);
+      hueLight.state.bri = Math.round(bri * 2.55);
 
       hueLights[hueLight.uniqueid] = hueLight;
     });
