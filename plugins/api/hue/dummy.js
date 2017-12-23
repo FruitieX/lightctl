@@ -79,8 +79,8 @@ exports.getGroups = () => ({
   },
 });
 
-exports.getLights = () => ({
-  '1': {
+exports.getLights = hueConfig => {
+  const dummyLight = {
     capabilities: {
       streaming: {
         proxy: true,
@@ -112,41 +112,25 @@ exports.getLights = () => ({
     swversion: '1.29.0_r21169',
     type: 'Extended color light',
     uniqueid: '00:17:88:01:02:13:37:52-0b',
-  },
-  '2': {
-    capabilities: {
-      streaming: {
-        proxy: true,
-        renderer: true,
-      },
-    },
-    manufacturername: 'Philips',
-    modelid: 'LCT010',
-    name: 'Dummy light 2',
-    productid: 'Philips-LCT010-1-A19ECLv4',
-    state: {
-      alert: 'none',
-      bri: 138,
-      colormode: 'xy',
-      ct: 500,
-      effect: 'none',
-      hue: 7170,
-      mode: 'homeautomation',
-      on: true,
-      reachable: true,
-      sat: 225,
-      xy: [0.5266, 0.4133],
-    },
-    swconfigid: '6A139B19',
-    swupdate: {
-      lastinstall: '2017-12-04T07:15:47',
-      state: 'noupdates',
-    },
-    swversion: '1.29.0_r21169',
-    type: 'Extended color light',
-    uniqueid: '00:17:88:01:02:13:38:52-0b',
-  },
-});
+  };
+
+  const lightIds = (hueConfig && hueConfig.dummyLights) || [
+    'Dummy light 1',
+    'Dummy light 2',
+  ];
+
+  const lights = {};
+
+  lightIds.forEach((lightId, index) => {
+    lights[String(index + 1)] = {
+      ...dummyLight,
+      name: lightId,
+      uniqueid: lightId,
+    };
+  });
+
+  return lights;
+};
 
 exports.putConfigUTC = hueConfig => [
   {

@@ -41,7 +41,7 @@ exports.initApi = async (server, hueConfig) => {
   if (hueConfig.dummy) {
     hueConfig.bridgeAddr = 'hue-bridge-addr';
 
-    lights = dummy.getLights();
+    lights = dummy.getLights(hueConfig);
     groups = dummy.getGroups();
     scenes = dummy.getScenes();
     for (const sceneId in scenes) {
@@ -103,9 +103,9 @@ exports.initApi = async (server, hueConfig) => {
     for (const sceneId in scenes) {
       const scene = scenes[sceneId];
       scene.lightstates = (await request({
-        url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/scenes/${
-          sceneId
-        }`,
+        url: `http://${hueConfig.bridgeAddr}/api/${
+          hueConfig.username
+        }/scenes/${sceneId}`,
         timeout: 1000,
         json: true,
       })).lightstates;
@@ -186,9 +186,9 @@ exports.initApi = async (server, hueConfig) => {
 
     // Hue bulbs are represented by single-light luminaires
     makeRequest({
-      url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/lights/${
-        lightId
-      }/state`,
+      url: `http://${hueConfig.bridgeAddr}/api/${
+        hueConfig.username
+      }/lights/${lightId}/state`,
       method: 'PUT',
       body,
       json: true,
