@@ -64,6 +64,21 @@ const toHueLights = luminaires => {
   return hueLights;
 };
 
+const crypto = require('crypto');
+const getSceneAppdata = sceneId => {
+  const hash = crypto.createHash('sha256');
+  hash.update(sceneId);
+
+  let digest = hash.digest('hex');
+  digest = digest.slice(0, 5);
+
+  // TODO: 'r01' means room number?
+  return {
+    data: `${digest}_r01_d99`,
+    version: 1,
+  };
+};
+
 const getHueScenes = () => {
   const scenes = { ...getScenes() };
 
@@ -82,6 +97,8 @@ const getHueScenes = () => {
         scenes[sceneId].lights.push(lightId),
       );
     });
+
+    scenes[sceneId].appdata = getSceneAppdata(sceneId);
 
     // Scene list does not contain lightstates
     delete scenes[sceneId].lightstates;
@@ -103,6 +120,7 @@ const getHueScene = sceneId => {
   hueScene.name = sceneId;
   hueScene.lights = [];
   hueScene.lightstates = {};
+  hueScene.appdata = getSceneAppdata(sceneId);
 
   sceneCmds.forEach(({ luminaire, cmd }) => {
     const hueLights = toHueLights([luminaire]);
