@@ -158,6 +158,8 @@ exports.initApi = async (server, hueConfig) => {
     }
 
     const lightId = result[0];
+    // HSV gives us much better representation of Hue's "bri" parameter than xyY
+    const bri = luminaire.lights[0].getState('hsv').nextState[2];
     const state = luminaire.lights[0].getState('xyY');
     const body = {};
 
@@ -170,7 +172,7 @@ exports.initApi = async (server, hueConfig) => {
       // TODO: must cache many of these fields and prevent sending dupes
       body.on = true;
 
-      body.bri = Math.round(Y * 2.55);
+      body.bri = Math.round(bri * 2.55);
       body.xy = [x, y];
 
       // Hue counts time as multiples of 100 ms...
