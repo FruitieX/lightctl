@@ -11,9 +11,9 @@ const { getColor } = require('./utils');
 
 let lights = {};
 let groups = {};
-let scenes = {};
-let sensors = {};
-let rules = {};
+// let scenes = {};
+// let sensors = {};
+// let rules = {};
 
 const fromHueLights = hueLights => {
   const lights = [];
@@ -43,13 +43,13 @@ exports.initApi = async (server, hueConfig) => {
 
     lights = dummy.getLights(hueConfig);
     groups = dummy.getGroups();
-    scenes = dummy.getScenes();
-    for (const sceneId in scenes) {
-      const scene = scenes[sceneId];
-      scene.lightstates = dummy.getScene(sceneId).lightstates;
-    }
-    sensors = dummy.getSensors();
-    rules = dummy.getRules();
+    // scenes = dummy.getScenes();
+    // for (const sceneId in scenes) {
+    //   const scene = scenes[sceneId];
+    //   scene.lightstates = dummy.getScene(sceneId).lightstates;
+    // }
+    // sensors = dummy.getSensors();
+    // rules = dummy.getRules();
   } else {
     if (!hueConfig.bridgeAddr || !hueConfig.username) {
       throw 'hue-api: hue.bridgeAddr or username not found in config!';
@@ -95,46 +95,46 @@ exports.initApi = async (server, hueConfig) => {
     console.log('hue-api: cached existing groups');
 
     // Discover existing scenes
-    scenes = await request({
-      url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/scenes`,
-      timeout: 1000,
-      json: true,
-    });
-    for (const sceneId in scenes) {
-      const scene = scenes[sceneId];
-      scene.lightstates = (await request({
-        url: `http://${hueConfig.bridgeAddr}/api/${
-          hueConfig.username
-        }/scenes/${sceneId}`,
-        timeout: 1000,
-        json: true,
-      })).lightstates;
-    }
-    console.log('hue-api: cached existing scenes');
+    // scenes = await request({
+    //   url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/scenes`,
+    //   timeout: 1000,
+    //   json: true,
+    // });
+    // for (const sceneId in scenes) {
+    //   const scene = scenes[sceneId];
+    //   scene.lightstates = (await request({
+    //     url: `http://${hueConfig.bridgeAddr}/api/${
+    //       hueConfig.username
+    //     }/scenes/${sceneId}`,
+    //     timeout: 1000,
+    //     json: true,
+    //   })).lightstates;
+    // }
+    // console.log('hue-api: cached existing scenes');
 
     // Discover existing sensors
-    sensors = await request({
-      url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/sensors`,
-      timeout: 1000,
-      json: true,
-    });
-    console.log('hue-api: cached existing sensors');
-
-    // Discover existing rules
-    rules = await request({
-      url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/rules`,
-      timeout: 1000,
-      json: true,
-    });
-    console.log('hue-api: cached existing rules');
+    // sensors = await request({
+    //   url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/sensors`,
+    //   timeout: 1000,
+    //   json: true,
+    // });
+    // console.log('hue-api: cached existing sensors');
+    //
+    // // Discover existing rules
+    // rules = await request({
+    //   url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/rules`,
+    //   timeout: 1000,
+    //   json: true,
+    // });
+    // console.log('hue-api: cached existing rules');
   }
 
   // Register all lights
   fromHueLights(lights).forEach(luminaireRegister);
 
   // TODO: wat do about these
-  server.event('getSensors');
-  server.event('getRules');
+  // server.event('getSensors');
+  // server.event('getRules');
 
   //server.events.on('getGroups', promises => promises.push(groups));
   //server.events.on('getLights', promises => promises.push(lights));
