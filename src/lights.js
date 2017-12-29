@@ -122,6 +122,10 @@ class Luminaire {
       (_, index) => new Light(this, initialStates[index]),
     );
   }
+
+  setState(nextState) {
+    this.lights.forEach(light => light.setState(nextState));
+  }
 }
 
 const luminaireRegister = fields => {
