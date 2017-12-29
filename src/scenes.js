@@ -7,6 +7,12 @@ let activeScene = null;
 
 const register = async (server, options) => {
   scenes = options;
+
+  server.event({ name: 'activateScene', clone: true });
+
+  server.events.on('start', () => {
+    server.events.on('activateScene', activateScene);
+  });
 };
 
 const getScenes = () => scenes;
@@ -52,7 +58,7 @@ const getSceneCmds = sceneId => {
   return sceneCmds;
 };
 
-const activateScene = sceneId => {
+const activateScene = ({ sceneId, transitionTime = 500 }) => {
   console.log('activateScene', sceneId);
 
   const scene = scenes[sceneId];
@@ -67,9 +73,13 @@ const activateScene = sceneId => {
 
   sceneCmds.forEach(({ luminaire, cmd }) => {
     if (Array.isArray(cmd)) {
-      cmd.forEach((state, index) => luminaire.lights[index].setState(state));
+      cmd.forEach((state, index) =>
+        luminaire.lights[index].setState({ ...state, transitionTime }),
+      );
     } else {
-      luminaire.lights.forEach(light => light.setState(cmd));
+      luminaire.lights.forEach(light =>
+        light.setState({ ...cmd, transitionTime }),
+      );
     }
   });
 };

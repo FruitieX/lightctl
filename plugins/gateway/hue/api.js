@@ -182,6 +182,12 @@ exports.initApi = async (server, hueConfig) => {
       if (body.transitiontime === 4) {
         delete body.transitiontime;
       }
+
+      // 500 ms is the default used in hue-forwarder, and perhaps close enough
+      // to 400 ms. Avoid sending as otherwise this will be sent a lot.
+      if (body.transitiontime === 5) {
+        delete body.transitiontime;
+      }
     }
 
     console.log('body:', body);

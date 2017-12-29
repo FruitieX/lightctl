@@ -272,7 +272,7 @@ exports.initApi = async (server, hueConfig) => {
     //handler: () => dummy.getLights(hueConfig),
     handler: req => {
       if (req.payload.scene) {
-        activateScene(req.payload.scene);
+        activateScene({ sceneId: req.payload.scene });
         return dummy.setSuccess({
           [`/groups/${req.params.groupId}/action/scene`]: req.payload.scene,
         });
