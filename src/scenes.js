@@ -9,9 +9,11 @@ const register = async (server, options) => {
   scenes = options;
 
   server.event({ name: 'activateScene', clone: true });
+  server.event({ name: 'cycleScenes', clone: true });
 
   server.events.on('start', () => {
     server.events.on('activateScene', activateScene);
+    server.events.on('cycleScenes', cycleScenes);
   });
 };
 
@@ -58,6 +60,8 @@ const getSceneCmds = sceneId => {
   return sceneCmds;
 };
 
+const getActiveScene = () => activeScene;
+
 const activateScene = ({ sceneId, transitionTime = 500 }) => {
   console.log('activateScene', sceneId);
 
@@ -82,6 +86,12 @@ const activateScene = ({ sceneId, transitionTime = 500 }) => {
       );
     }
   });
+};
+
+const cycleScenes = ({ scenes }) => {
+  const currentIndex = scenes.indexOf(activeScene);
+
+  activateScene({ sceneId: scenes[(currentIndex + 1) % scenes.length] });
 };
 
 module.exports = {
