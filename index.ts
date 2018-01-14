@@ -29,7 +29,7 @@ const initServer = async () => {
   // Helper for emitting events and awaiting results from listeners
   const emitAwait = async (event: string) => {
     const promises: any[] = [];
-    await new Promise(resolve => server.events.emit(event, promises, resolve));
+    await server.events.emit(event, promises);
     const results = await promises;
     return Object.assign({}, ...results);
   };

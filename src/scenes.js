@@ -4,15 +4,25 @@ const { getLuminaire } = require('./lights');
 let scenes = {};
 let prevScene = null;
 let activeScene = null;
+let server = null;
 
-const register = async (server, options) => {
+const register = async (_server, options) => {
+  server = _server;
   scenes = options;
 
+  // Default to first scene
+  activeScene = Object.keys(scenes)[0];
+
+  server.event({ name: 'modifyScene', clone: true });
   server.event({ name: 'activateScene', clone: true });
+  server.event({ name: 'forceSceneUpdate', clone: true });
   server.event({ name: 'cycleScenes', clone: true });
+  server.event({ name: 'sceneMiddleware' });
 
   server.events.on('start', () => {
+    server.events.on('modifyScene', modifyScene);
     server.events.on('activateScene', activateScene);
+    server.events.on('forceSceneUpdate', doSceneUpdate);
     server.events.on('cycleScenes', cycleScenes);
   });
 };
@@ -20,10 +30,19 @@ const register = async (server, options) => {
 const getScenes = () => scenes;
 const getScene = sceneId => scenes[sceneId];
 
+const modifyScene = ({ sceneId, scene, transitionTime }) => {
+  scenes[sceneId] = scene;
+
+  if (sceneId === activeScene) {
+    doSceneUpdate({ transitionTime });
+  }
+};
+
 const getSceneCmds = sceneId => {
   const scene = scenes[sceneId];
   if (!scene) {
-    return console.log('No scene found with sceneId', sceneId);
+    console.log('No scene found with sceneId', sceneId);
+    return [];
   }
 
   const sceneCmds = [];
@@ -62,7 +81,32 @@ const getSceneCmds = sceneId => {
 
 const getActiveScene = () => activeScene;
 
-const activateScene = ({ sceneId, transitionTime = 500 }) => {
+const doSceneUpdate = ({
+  sceneId = activeScene,
+  transitionTime = 500,
+  useExistingTransition = false,
+} = {}) => {
+  const sceneCmds = getSceneCmds(sceneId);
+
+  // TODO: cmd could be luminaireCmd
+  sceneCmds.forEach(({ luminaire, cmd }) => {
+    if (Array.isArray(cmd)) {
+      cmd.forEach((lightCmd, index) =>
+        applySceneCmd(luminaire.lights[index], {
+          ...lightCmd,
+          transitionTime,
+          useExistingTransition,
+        }),
+      );
+    } else {
+      luminaire.lights.forEach(light =>
+        applySceneCmd(light, { ...cmd, transitionTime, useExistingTransition }),
+      );
+    }
+  });
+};
+
+const activateScene = ({ sceneId, transitionTime }) => {
   console.log('activateScene', sceneId);
 
   const scene = scenes[sceneId];
@@ -73,19 +117,24 @@ const activateScene = ({ sceneId, transitionTime = 500 }) => {
   prevScene = activeScene;
   activeScene = sceneId;
 
-  const sceneCmds = getSceneCmds(sceneId);
+  doSceneUpdate({ sceneId, transitionTime });
+};
 
-  sceneCmds.forEach(({ luminaire, cmd }) => {
-    if (Array.isArray(cmd)) {
-      cmd.forEach((state, index) =>
-        luminaire.lights[index].setState({ ...state, transitionTime }),
-      );
-    } else {
-      luminaire.lights.forEach(light =>
-        light.setState({ ...cmd, transitionTime }),
-      );
-    }
-  });
+const applySceneCmd = async (light, cmd) => {
+  // Let scene middleware modify a deep clone of cmd
+  cmd = JSON.parse(JSON.stringify(cmd));
+  await server.events.emit('sceneMiddleware', { light, cmd });
+
+  // If useExistingTransition was specified, use transitionTime from ongoing
+  // transition if it is longer than cmd.transitionTime.
+  if (cmd.useExistingTransition) {
+    cmd.transitionTime = Math.max(
+      cmd.transitionTime,
+      light.getState().transitionTime,
+    );
+  }
+
+  light.setState(cmd);
 };
 
 const cycleScenes = ({ scenes }) => {
@@ -101,5 +150,6 @@ module.exports = {
   getScenes,
   getScene,
   getSceneCmds,
+  modifyScene,
   activateScene,
 };
