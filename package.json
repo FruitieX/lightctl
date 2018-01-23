@@ -11,6 +11,7 @@
     "lodash": "^4.17.4",
     "nes": "^7.0.1",
     "node-ssdp": "^3.2.1",
+    "ramda": "^0.25.0",
     "request": "^2.82.0",
     "request-promise-native": "^1.0.5"
   },

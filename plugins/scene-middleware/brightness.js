@@ -6,6 +6,9 @@
  */
 
 let brightness = 100;
+let prevBrightness = 100;
+let prevTransitionTime = null;
+let prevTransitionStart = null;
 
 const sceneMiddleware = ({ cmd }) => {
   const multiplier = brightness / 100;
@@ -32,7 +35,7 @@ const setBrightness = server => ({
   useExistingTransition = false,
 }) => {
   if (!isNaN(delta)) {
-    brightness += delta;
+    brightness = prevBrightness + delta;
   }
   if (!isNaN(value)) {
     brightness = value;
@@ -45,6 +48,17 @@ const setBrightness = server => ({
   server.events.emit('forceSceneUpdate', {
     transitionTime,
     useExistingTransition,
+  });
+
+  prevBrightness = brightness;
+  prevTransitionTime = transitionTime;
+  prevTransitionStart = new Date().getTime();
+};
+
+const fadeBrightness = server => ({ rate = 20, updateInterval = 1000 }) => {
+  setBrightness(server)({
+    delta: rate * updateInterval / 1000,
+    transitionTime: updateInterval,
   });
 };
 
@@ -95,6 +109,7 @@ const register = async function(server, options) {
   server.events.on('start', () => {
     server.events.on('sceneMiddleware', sceneMiddleware);
     server.events.on('setBrightness', setBrightness(server));
+    //server.events.on('fadeBrightness', fadeBrightness(server));
 
     if (options.daylight) {
       const updateInterval = options.daylight.updateInterval || 60;

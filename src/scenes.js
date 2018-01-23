@@ -1,17 +1,16 @@
+const state = require('./state');
+const R = require('ramda');
 const { getGroup, groupExists } = require('./groups');
 const { getLuminaire } = require('./lights');
 
-let scenes = {};
-let prevScene = null;
-let activeScene = null;
 let server = null;
 
-const register = async (_server, options) => {
+const register = async (_server, scenes) => {
   server = _server;
-  scenes = options;
+  state.set(['scenes', 'entries'], scenes);
 
   // Default to first scene
-  activeScene = Object.keys(scenes)[0];
+  state.set(['scenes', 'active'], Object.keys(scenes)[0]);
 
   server.event({ name: 'modifyScene', clone: true });
   server.event({ name: 'activateScene', clone: true });
@@ -27,19 +26,20 @@ const register = async (_server, options) => {
   });
 };
 
-const getScenes = () => scenes;
-const getScene = sceneId => scenes[sceneId];
+const getScenes = () => state.get(['scenes', 'entries']);
+const getScene = sceneId => state.get(['scenes', 'entries', sceneId]);
+const getActiveSceneId = () => state.get(['scenes', 'active']);
 
 const modifyScene = ({ sceneId, scene, transitionTime }) => {
-  scenes[sceneId] = scene;
+  state.set(['scenes', 'entries', sceneId], scene);
 
-  if (sceneId === activeScene) {
+  if (sceneId === getActiveSceneId()) {
     doSceneUpdate({ transitionTime });
   }
 };
 
 const getSceneCmds = sceneId => {
-  const scene = scenes[sceneId];
+  const scene = getScene(sceneId);
   if (!scene) {
     console.log('No scene found with sceneId', sceneId);
     return [];
@@ -79,10 +79,8 @@ const getSceneCmds = sceneId => {
   return sceneCmds;
 };
 
-const getActiveScene = () => activeScene;
-
 const doSceneUpdate = ({
-  sceneId = activeScene,
+  sceneId = getActiveSceneId(),
   transitionTime = 500,
   useExistingTransition = false,
 } = {}) => {
@@ -109,13 +107,13 @@ const doSceneUpdate = ({
 const activateScene = ({ sceneId, transitionTime }) => {
   console.log('activateScene', sceneId);
 
-  const scene = scenes[sceneId];
+  const scene = getScene(sceneId);
   if (!scene) {
     return console.log('No scene found with sceneId', sceneId);
   }
 
-  prevScene = activeScene;
-  activeScene = sceneId;
+  state.set(['scenes', 'prev'], getActiveSceneId());
+  state.set(['scenes', 'active'], sceneId);
 
   doSceneUpdate({ sceneId, transitionTime });
 };
@@ -138,7 +136,7 @@ const applySceneCmd = async (light, cmd) => {
 };
 
 const cycleScenes = ({ scenes }) => {
-  const currentIndex = scenes.indexOf(activeScene);
+  const currentIndex = scenes.indexOf(getActiveSceneId());
 
   activateScene({ sceneId: scenes[(currentIndex + 1) % scenes.length] });
 };

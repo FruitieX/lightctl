@@ -1,7 +1,7 @@
-let groups = {};
+const state = require('./state');
 
-const register = async (server, options) => {
-  groups = options;
+const register = async (server, groups) => {
+  state.set(['groups'], groups);
 
   server.event({ name: 'setGroupState', clone: true });
 
@@ -11,29 +11,32 @@ const register = async (server, options) => {
 
   server.events.on('luminaireDidRegister', luminaire => {
     // Insert newly registered luminaire to any groups it belongs to
-    Object.entries(groups).forEach(([groupId, group]) => {
-      groups[groupId] = group.map(groupLuminaire => {
-        // If groupLuminaire is still a string, test if this luminaire should replace it
-        if (
-          typeof groupLuminaire === 'string' &&
-          groupLuminaire === luminaire.id
-        ) {
-          return luminaire;
-        }
+    Object.entries(state.get(['groups'])).forEach(([groupId, group]) => {
+      state.set(
+        ['groups', groupId],
+        group.map(groupLuminaire => {
+          // If groupLuminaire is still a string, test if this luminaire should replace it
+          if (
+            typeof groupLuminaire === 'string' &&
+            groupLuminaire === luminaire.id
+          ) {
+            return luminaire;
+          }
 
-        // Otherwise don't modify groupLuminaire
-        return groupLuminaire;
-      });
+          // Otherwise don't modify groupLuminaire
+          return groupLuminaire;
+        }),
+      );
     });
   });
 };
 
-const groupExists = groupId => !!groups[groupId];
+const groupExists = groupId => !!state.get(['groups', groupId]);
 
 const getGroup = groupId => {
   let result = [];
 
-  const group = groups[groupId];
+  const group = state.get(['groups', groupId]);
 
   if (!group) {
     return console.log('Group not found with groupId', groupId);
@@ -49,12 +52,16 @@ const getGroup = groupId => {
   return result;
 };
 
-const setGroupState = ({ groupId, ...state }) => {
+const setGroupState = ({ groupId, ...groupState }) => {
   const group = getGroup(groupId);
 
   if (!group) return;
 
-  group.forEach(luminaire => luminaire.setState(state));
+  // Setting group state will reset active scene
+  state.set(['scenes', 'prev'], state.get(['scenes', 'active']));
+  state.set(['scenes', 'active'], null);
+
+  group.forEach(luminaire => luminaire.setState(groupState));
 };
 
 module.exports = {
