@@ -10,22 +10,26 @@ let prevBrightness = 100;
 let prevTransitionTime = null;
 let prevTransitionStart = null;
 
-const sceneMiddleware = ({ cmd }) => {
-  const multiplier = brightness / 100;
-  if (cmd.rgb) {
-    cmd.rgb[0] *= multiplier;
-    cmd.rgb[1] *= multiplier;
-    cmd.rgb[2] *= multiplier;
-  }
-  if (cmd.xyY) {
-    cmd.xyY[2] *= multiplier;
-  }
-  if (cmd.ct) {
-    cmd.ct[1] *= multiplier;
-  }
-  if (cmd.hsv) {
-    cmd.hsv[2] *= multiplier;
-  }
+const sceneMiddleware = ({ lightCmds }) => {
+  lightCmds.forEach(lightCmd => {
+    const cmd = lightCmd.cmd;
+
+    const multiplier = brightness / 100;
+    if (cmd.rgb) {
+      cmd.rgb[0] *= multiplier;
+      cmd.rgb[1] *= multiplier;
+      cmd.rgb[2] *= multiplier;
+    }
+    if (cmd.xyY) {
+      cmd.xyY[2] *= multiplier;
+    }
+    if (cmd.ct) {
+      cmd.ct[1] *= multiplier;
+    }
+    if (cmd.hsv) {
+      cmd.hsv[2] *= multiplier;
+    }
+  });
 };
 
 const setBrightness = server => ({
