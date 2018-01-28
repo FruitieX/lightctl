@@ -67,14 +67,23 @@ const toHueCmd = (state, prevState) => {
   }
 
   if (off) {
+    // If the bulb is already off, don't send another off command
+    if (!prevState.on) {
+      return null;
+    }
+
     // For whatever reason turning Hue bulbs off with a long transitiontime
     // makes the transition "cut off" at the end, instantly turning off the bulb.
     // Here's a workaround which first fades the light to brightness 0, and
     // sets a transitionHack flag to the time when the light should receive an
     // additional on=false command.
     if (transitiontime > 5) {
-      cmd.body.bri = 0;
-      cmd.transitionHack = state.transitionTime;
+      // Setting bri = 0 here would reset the transition hack (probably the
+      // same command was just repeated), don't do that if a transition is ongoing
+      if (!prevState.transitionHackTimeout) {
+        cmd.body.bri = 0;
+      }
+      cmd.transitionHack = state.transitionTime - 500;
     } else {
       cmd.body.on = false;
     }
@@ -112,6 +121,26 @@ exports.initApi = async (server, hueConfig) => {
     } else {
       return await request(fields);
     }
+  };
+
+  const sendLightsCmd = async (lightId, body) => {
+    console.log('sending hue cmd to', lightId, body);
+
+    // Hue bulbs are represented by single-light luminaires
+    await makeRequest({
+      url: `http://${hueConfig.bridgeAddr}/api/${
+        hueConfig.username
+      }/lights/${lightId}/state`,
+      method: 'PUT',
+      body,
+      json: true,
+      timeout: 1000,
+    });
+
+    state.set(['hue', 'lights', lightId], {
+      ...state.get(['hue', 'lights', lightId]),
+      ...body,
+    });
   };
 
   if (hueConfig.dummy) {
@@ -246,9 +275,6 @@ exports.initApi = async (server, hueConfig) => {
     let prevState = state.get(['hue', 'lights', lightId]);
     //console.log('prevState', prevState);
 
-    // Get rid of possible existing transition hack timeout
-    clearTimeout(prevState.transitionHackTimeout);
-
     const cmd = toHueCmd(light.getState(), prevState);
 
     if (!cmd) {
@@ -256,19 +282,17 @@ exports.initApi = async (server, hueConfig) => {
       return;
     }
 
+    // Get rid of possible existing transition hack timeout
+    clearTimeout(prevState.transitionHackTimeout);
+    prevState = state.set(['hue', 'lights', lightId], {
+      ...prevState,
+      transitionHackTimeout: null,
+    });
+
     // Send delayed off command
     if (cmd.transitionHack) {
       const transitionHackTimeout = setTimeout(
-        () =>
-          makeRequest({
-            url: `http://${hueConfig.bridgeAddr}/api/${
-              hueConfig.username
-            }/lights/${lightId}/state`,
-            method: 'PUT',
-            body: { on: false },
-            json: true,
-            timeout: 1000,
-          }),
+        () => sendLightsCmd(lightId, { on: false }),
         cmd.transitionHack,
       );
 
@@ -278,22 +302,6 @@ exports.initApi = async (server, hueConfig) => {
       });
     }
 
-    console.log('sending hue cmd to', luminaire.id, cmd.body);
-
-    // Hue bulbs are represented by single-light luminaires
-    await makeRequest({
-      url: `http://${hueConfig.bridgeAddr}/api/${
-        hueConfig.username
-      }/lights/${lightId}/state`,
-      method: 'PUT',
-      body: cmd.body,
-      json: true,
-      timeout: 1000,
-    });
-
-    state.set(['hue', 'lights', lightId], {
-      ...prevState,
-      ...cmd.body,
-    });
+    sendLightsCmd(lightId, cmd.body);
   });
 };
