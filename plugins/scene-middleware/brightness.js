@@ -124,7 +124,7 @@ const daylightBrightness = (server, options) => initial => {
     // Nighttime, decrease brightness by increaseRate / hour
     const value = Math.max(
       min,
-      brightness + decreaseRate * (updateInterval / 3600),
+      brightness - decreaseRate * (updateInterval / 3600),
     );
     setBrightness(server)({ value, useExistingTransition: true });
   }
