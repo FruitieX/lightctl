@@ -95,8 +95,6 @@ const runScene = async sceneId => {
 
     curSceneCmds[lightIndex] = lightCmd;
 
-    console.log(curSceneCmds);
-
     modifyScene({
       sceneId,
       lightCmds: curSceneCmds,

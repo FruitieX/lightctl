@@ -65,19 +65,6 @@ class Light {
       return prevValue * (1 - q) + value * q;
     });
 
-    /*
-    // TODO: DEBUG
-    if (this.parentLuminaire.id === 'Nattbord') {
-      console.log('\n\n');
-      console.log('getState()\n=========');
-      console.log('state', this.state);
-      console.log('prevState', this.prevState);
-      console.log('currentState', currentState);
-      console.log('q', q);
-      console.log('\n\n');
-    }
-    */
-
     return {
       prevState: this.prevState,
       currentState,
@@ -107,15 +94,6 @@ class Light {
         'ERROR: setState() first parameter must be an array of length 3!',
       );
       return;
-    }
-
-    // TODO: DEBUG
-    if (this.parentLuminaire.id === 'Nattbord') {
-      console.log('\n\n');
-      console.log('setState()\n=========');
-      console.log('state', this.state);
-      console.log('prevState', this.prevState);
-      console.log('\n\n');
     }
 
     // Set prevState to whatever values the light has right now
