@@ -64,6 +64,7 @@ const runScene = async sceneId => {
   modifyScene({
     sceneId,
     lightCmds: restoreLightCmds,
+    skipMiddleware: true,
   });
 
   await delay(1000);

@@ -32,8 +32,15 @@ const getScenes = () => state.get(['scenes', 'entries']);
 const getScene = (sceneId, unmodified) =>
   state.get(['scenes', unmodified ? 'unmodified' : 'entries', sceneId]);
 const getActiveSceneId = () => state.get(['scenes', 'active']);
+const getPrevSceneId = () => state.get(['scenes', 'prev']);
 
-const modifyScene = ({ sceneId, scene, lightCmds, transitionTime }) => {
+const modifyScene = ({
+  sceneId,
+  scene,
+  lightCmds,
+  transitionTime,
+  skipMiddleware,
+}) => {
   if (scene) {
     state.set(['scenes', 'entries', sceneId], scene);
   }
@@ -60,8 +67,11 @@ const modifyScene = ({ sceneId, scene, lightCmds, transitionTime }) => {
   }
 
   if (sceneId === getActiveSceneId()) {
-    console.log('updating');
-    doSceneUpdate({ transitionTime, useExistingTransition: true });
+    doSceneUpdate({
+      transitionTime,
+      useExistingTransition: true,
+      skipMiddleware,
+    });
   }
 };
 
@@ -135,6 +145,7 @@ const doSceneUpdate = async ({
   transitionTime = 500,
   useExistingTransition = false,
   activated = false,
+  skipMiddleware = false,
 } = {}) => {
   let lightCmds = getSceneLightCmds(sceneId);
 
@@ -143,11 +154,14 @@ const doSceneUpdate = async ({
     ...lightCmd,
     cmd: JSON.parse(JSON.stringify(lightCmd.cmd)),
   }));
-  await server.events.emit('sceneMiddleware', {
-    sceneId,
-    lightCmds,
-    activated,
-  });
+
+  if (!skipMiddleware) {
+    await server.events.emit('sceneMiddleware', {
+      sceneId,
+      lightCmds,
+      activated,
+    });
+  }
 
   lightCmds.forEach(({ light, cmd }) =>
     applySceneCmd(sceneId, light, {
@@ -169,7 +183,10 @@ const activateScene = ({ sceneId, transitionTime }) => {
   state.set(['scenes', 'prev'], getActiveSceneId());
   state.set(['scenes', 'active'], sceneId);
 
-  doSceneUpdate({ sceneId, transitionTime, activated: true });
+  // Was the scene just activated?
+  const activated = sceneId !== getPrevSceneId();
+
+  doSceneUpdate({ sceneId, transitionTime, activated });
 };
 
 const applySceneCmd = async (sceneId, light, cmd) => {
