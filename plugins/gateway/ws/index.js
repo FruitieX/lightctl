@@ -1,11 +1,27 @@
 const Nes = require('nes');
-const { luminaireRegister } = require('../../../src/lights');
+const {
+  luminaireRegister,
+  getLuminaire,
+  getLuminaires,
+} = require('../../../src/lights');
 
 const register = async function(server, options) {
   await server.register(Nes);
 
-  server.subscription('/luminaires/{luminaireId}');
-  server.subscription('/luminaires/all');
+  // Send initial state as soon as client subscribes to luminaires
+  server.subscription('/luminaires/{luminaireId}', {
+    onSubscribe: async (socket, path, params) =>
+      socket.publish(
+        `/luminaires/${params.luminaireId}`,
+        getLuminaire(params.luminaireId),
+      ),
+  });
+  server.subscription('/luminaires/all', {
+    onSubscribe: async (socket, path, params) =>
+      getLuminaires().forEach(luminaire =>
+        socket.publish(`/luminaires/all`, luminaire),
+      ),
+  });
 
   server.events.on('luminaireUpdate', luminaire => {
     server.publish(`/luminaires/${luminaire.id}`, luminaire.lights);
