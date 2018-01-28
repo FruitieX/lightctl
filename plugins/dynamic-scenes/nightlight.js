@@ -88,7 +88,7 @@ const runScene = async sceneId => {
     };
     */
 
-    console.log('Fading out ', lightCmd.light.parentLuminaire.id);
+    console.log('Fading out', lightCmd.light.parentLuminaire.id);
 
     const lightIndex = curSceneCmds.findIndex(
       candidate => candidate.light.uuid === lightCmd.light.uuid,

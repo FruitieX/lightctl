@@ -278,7 +278,7 @@ exports.initApi = async (server, hueConfig) => {
       });
     }
 
-    console.log('sending hue cmd', cmd.body);
+    console.log('sending hue cmd to', luminaire.id, cmd.body);
 
     // Hue bulbs are represented by single-light luminaires
     await makeRequest({
