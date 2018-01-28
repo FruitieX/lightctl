@@ -96,14 +96,24 @@ const runScene = async sceneId => {
 
     curSceneCmds[lightIndex] = lightCmd;
 
+    // TODO: we need a nicer API... currently feeding in all lights at once
+    // means that middleware will mess up lights that we don't want to touch yet
+    // (e.g. brightness gets applied twice...)
     modifyScene({
       sceneId,
       lightCmds: curSceneCmds,
       transitionTime: fadeTime / lightsToFade.length + 1000,
+      skipMiddleware: true,
     });
 
     await delay(fadeTime / lightsToFade.length);
   }
+
+  // One more time without skipMiddleware to allow e.g. final brightness adjustments
+  modifyScene({
+    sceneId,
+    lightCmds: curSceneCmds,
+  });
 };
 
 const sceneMiddleware = (server, options, scene) => ({
