@@ -13,7 +13,7 @@ module.exports = explorer.load('.').then(result => {
     result = result.config;
   }
 
-  console.log(JSON.stringify(result, null, 2));
+  //console.log(JSON.stringify(result, null, 2));
 
   return result;
 });

@@ -5,6 +5,7 @@
  */
 
 const dummy = require('../../api/hue/dummy');
+const convert = require('color-convert');
 const request = require('request-promise-native');
 const { luminaireRegister } = require('../../../src/lights');
 const { getColor } = require('./utils');
@@ -159,11 +160,11 @@ exports.initApi = async (server, hueConfig) => {
 
     const lightId = result[0];
     // HSV gives us much better representation of Hue's "bri" parameter than xyY
-    const bri = luminaire.lights[0].getState('hsv').nextState[2];
-    const state = luminaire.lights[0].getState('xyY');
+    const bri = luminaire.lights[0].getState().nextState[2];
+    const state = luminaire.lights[0].getState();
     const body = {};
 
-    const [x, y, Y] = state.nextState;
+    const [x, y, Y] = convert['hsv']['xyY'].raw(state.nextState);
 
     if (Y === 0) {
       // We assume brightness 0 is darkness (unlike Hue)
@@ -190,7 +191,7 @@ exports.initApi = async (server, hueConfig) => {
       }
     }
 
-    console.log('body:', body);
+    //console.log('body:', body);
 
     // Hue bulbs are represented by single-light luminaires
     makeRequest({

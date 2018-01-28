@@ -19,13 +19,19 @@ const register = async function(server, options) {
   server.subscription('/luminaires/all', {
     onSubscribe: async (socket, path, params) =>
       getLuminaires().forEach(luminaire =>
-        socket.publish(`/luminaires/all`, luminaire),
+        socket.publish(`/luminaires/all`, {
+          ...luminaire,
+          lights: luminaire.lights.map(light => light.debug()),
+        }),
       ),
   });
 
   server.events.on('luminaireUpdate', luminaire => {
     server.publish(`/luminaires/${luminaire.id}`, luminaire.lights);
-    server.publish(`/luminaires/all`, luminaire);
+    server.publish(`/luminaires/all`, {
+      ...luminaire,
+      lights: luminaire.lights.map(light => light.debug()),
+    });
   });
   server.events.on('luminaireDidRegister', luminaire => {
     server.publish(`/luminaires/${luminaire.id}`, luminaire.lights);

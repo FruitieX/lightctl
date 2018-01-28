@@ -5,6 +5,7 @@
 const convert = require('color-convert');
 const request = require('request-promise-native');
 const forEach = require('lodash/forEach');
+const uuidv4 = require('uuid/v4');
 
 let state = {
   luminaires: [],
@@ -15,7 +16,7 @@ let server;
 
 const dispatchChanges = () => {
   state.willDispatch = false;
-  console.log('dispatching changes:', JSON.stringify(state.changesToDispatch));
+  //console.log('dispatching changes:', JSON.stringify(state.changesToDispatch));
 
   // TODO: merge / get rid of potential duplicates?
   state.changesToDispatch.forEach(luminaire =>
@@ -26,37 +27,24 @@ const dispatchChanges = () => {
 };
 
 class Light {
-  constructor(parentLuminaire, initialState = { rgb: [255, 255, 255] }) {
+  constructor(
+    parentLuminaire,
+    initialState = [0, 0, 255], // White in HSV
+    index = 0,
+    uuid = uuidv4(),
+  ) {
     this.parentLuminaire = parentLuminaire;
+    this.index = 0;
+    this.uuid = uuid;
 
-    this.state = this.convertAll(initialState);
-    this.prevState = this.convertAll(initialState);
+    this.state = initialState;
+    this.prevState = initialState;
 
     this.transitionStart = new Date().getTime();
     this.transitionEnd = new Date().getTime();
   }
 
-  convertAll(lightState) {
-    const colorModes = {};
-    const supportedModes = ['rgb', 'xyY', 'ct', 'hsv'];
-
-    const fromMode = Object.keys(lightState).find(key =>
-      supportedModes.includes(key),
-    );
-
-    colorModes[fromMode] = lightState[fromMode];
-
-    const shouldConvert = supportedModes.filter(mode => mode !== fromMode);
-
-    shouldConvert.forEach(
-      mode =>
-        (colorModes[mode] = convert[fromMode][mode].raw(lightState[fromMode])),
-    );
-
-    return colorModes;
-  }
-
-  getState(colorMode = 'rgb') {
+  getState() {
     // Calculate current state from transition times
     let q = 1;
 
@@ -71,19 +59,41 @@ class Light {
       );
     }
 
-    const state = this.state[colorMode];
-    const prevState = this.prevState[colorMode];
-
-    const currentState = state.map((value, index) => {
-      const prevValue = prevState[index];
+    const currentState = this.state.map((value, index) => {
+      const prevValue = this.prevState[index];
 
       return prevValue * (1 - q) + value * q;
     });
 
+    /*
+    // TODO: DEBUG
+    if (this.parentLuminaire.id === 'Nattbord') {
+      console.log('\n\n');
+      console.log('getState()\n=========');
+      console.log('state', this.state);
+      console.log('prevState', this.prevState);
+      console.log('currentState', currentState);
+      console.log('q', q);
+      console.log('\n\n');
+    }
+    */
+
     return {
+      prevState: this.prevState,
       currentState,
-      nextState: state,
+      nextState: this.state,
       transitionTime: Math.max(0, this.transitionEnd - this.transitionStart),
+    };
+  }
+
+  debug() {
+    return {
+      parentId: this.parentLuminaire.id,
+      index: this.index,
+      state: this.state,
+      prevState: this.prevState,
+      transitionStart: this.transitionStart,
+      transitionEnd: this.transitionEnd,
     };
   }
 
@@ -91,16 +101,35 @@ class Light {
     return this.getState();
   }
 
-  setState(nextState) {
-    this.prevState = this.convertAll({ rgb: this.getState().currentState });
-    this.state = this.convertAll(nextState);
+  setState(nextState, options = {}) {
+    if (!nextState || !Array.isArray(nextState) || nextState.length !== 3) {
+      console.log(
+        'ERROR: setState() first parameter must be an array of length 3!',
+      );
+      return;
+    }
+
+    // TODO: DEBUG
+    if (this.parentLuminaire.id === 'Nattbord') {
+      console.log('\n\n');
+      console.log('setState()\n=========');
+      console.log('state', this.state);
+      console.log('prevState', this.prevState);
+      console.log('\n\n');
+    }
+
+    // Set prevState to whatever values the light has right now
+    this.prevState = this.getState().currentState;
+    //this.prevState = this.state;
+    this.state = nextState;
 
     this.transitionStart = new Date().getTime();
-    this.transitionEnd =
-      new Date().getTime() + (nextState.transitionTime || 500);
+    this.transitionEnd = new Date().getTime() + (options.transitionTime || 500);
 
     // TODO: some form of diffing here?
-    state.changesToDispatch.push(this.parentLuminaire);
+    if (!state.changesToDispatch.includes(this.parentLuminaire)) {
+      state.changesToDispatch.push(this.parentLuminaire);
+    }
 
     if (!state.willDispatch) {
       state.willDispatch = true;
@@ -119,12 +148,12 @@ class Luminaire {
     this.id = id;
     this.gateway = gateway;
     this.lights = [...Array(numLights)].map(
-      (_, index) => new Light(this, initialStates[index]),
+      (_, index) => new Light(this, initialStates[index], index),
     );
   }
 
-  setState(nextState) {
-    this.lights.forEach(light => light.setState(nextState));
+  setState(nextState, options) {
+    this.lights.forEach(light => light.setState(nextState, options));
   }
 }
 
@@ -142,7 +171,7 @@ const luminaireRegister = fields => {
   server.events.emit('luminaireDidRegister', luminaire);
 };
 
-const setLight = (luminaireId, lightId, fields) => {
+const setLight = ({ luminaireId, lightId, state: nextState, options }) => {
   const luminaire = state.luminaires.find(
     luminaire => luminaire.id === luminaireId,
   );
@@ -155,8 +184,8 @@ const setLight = (luminaireId, lightId, fields) => {
     return console.log('Error: setLight() called with unknown light id!');
   }
 
-  console.log('setLight():', JSON.stringify(fields));
-  light.setState(fields);
+  console.log('setLight():', JSON.stringify(nextState));
+  light.setState(nextState, options);
 
   /*
   //const light = lights[lightId];
@@ -204,7 +233,7 @@ const register = async function(_server, options) {
     // Discover existing lights
     lights = await server.emitAwait('getLights');
     */
-    //server.events.on('setLights', setLights);
+    server.events.on('setLight', setLight);
     //server.events.on('getLights', getLights);
     // server.events.on('lightChanged', lightChanged);
   });
@@ -212,9 +241,9 @@ const register = async function(_server, options) {
   server.event({ name: 'luminaireUpdate', clone: true });
   server.event({ name: 'luminaireDidUpdate', clone: true });
   server.event({ name: 'luminaireRegister', clone: true });
-  server.event({ name: 'luminaireDidRegister', clone: true });
+  server.event({ name: 'luminaireDidRegister' });
   server.event({ name: 'removeLights', clone: true });
-  server.event({ name: 'setLights', clone: true });
+  server.event({ name: 'setLight', clone: true });
   // server.event({ name: 'lightChanged', clone: true });
 };
 

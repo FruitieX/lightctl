@@ -2,6 +2,7 @@ const state = require('./state');
 const R = require('ramda');
 const { getGroup, groupExists } = require('./groups');
 const { getLuminaire } = require('./lights');
+const convert = require('color-convert');
 
 let server = null;
 
@@ -28,13 +29,38 @@ const register = async (_server, scenes) => {
 };
 
 const getScenes = () => state.get(['scenes', 'entries']);
-const getScene = sceneId => state.get(['scenes', 'entries', sceneId]);
+const getScene = (sceneId, unmodified) =>
+  state.get(['scenes', unmodified ? 'unmodified' : 'entries', sceneId]);
 const getActiveSceneId = () => state.get(['scenes', 'active']);
 
-const modifyScene = ({ sceneId, scene, transitionTime }) => {
-  state.set(['scenes', 'entries', sceneId], scene);
+const modifyScene = ({ sceneId, scene, lightCmds, transitionTime }) => {
+  if (scene) {
+    state.set(['scenes', 'entries', sceneId], scene);
+  }
+  if (lightCmds) {
+    const newScene = {};
+
+    lightCmds.forEach(({ light, cmd }) => {
+      const luminaire = light.parentLuminaire;
+
+      // Initialize luminaire command array if it doesn't exist yet
+      if (!newScene[luminaire.id]) {
+        newScene[luminaire.id] = [];
+      }
+
+      newScene[luminaire.id][light.index] = cmd;
+    });
+
+    console.log(
+      'scene',
+      JSON.stringify(state.get(['scenes', 'entries', sceneId])),
+    );
+    state.set(['scenes', 'entries', sceneId], newScene);
+    console.log('newScene', JSON.stringify(newScene));
+  }
 
   if (sceneId === getActiveSceneId()) {
+    console.log('updating');
     doSceneUpdate({ transitionTime, useExistingTransition: true });
   }
 };
@@ -76,8 +102,8 @@ const getLightCmdsForLuminaire = (luminaire, cmds) => {
   return lightCmds;
 };
 
-const getSceneLightCmds = sceneId => {
-  const scene = getScene(sceneId);
+const getSceneLightCmds = (sceneId, unmodified = false) => {
+  const scene = getScene(sceneId, unmodified);
   if (!scene) {
     console.log('No scene found with sceneId', sceneId);
     return [];
@@ -108,6 +134,7 @@ const doSceneUpdate = async ({
   sceneId = getActiveSceneId(),
   transitionTime = 500,
   useExistingTransition = false,
+  activated = false,
 } = {}) => {
   let lightCmds = getSceneLightCmds(sceneId);
 
@@ -116,7 +143,11 @@ const doSceneUpdate = async ({
     ...lightCmd,
     cmd: JSON.parse(JSON.stringify(lightCmd.cmd)),
   }));
-  await server.events.emit('sceneMiddleware', { sceneId, lightCmds });
+  await server.events.emit('sceneMiddleware', {
+    sceneId,
+    lightCmds,
+    activated,
+  });
 
   lightCmds.forEach(({ light, cmd }) =>
     applySceneCmd(sceneId, light, {
@@ -138,7 +169,7 @@ const activateScene = ({ sceneId, transitionTime }) => {
   state.set(['scenes', 'prev'], getActiveSceneId());
   state.set(['scenes', 'active'], sceneId);
 
-  doSceneUpdate({ sceneId, transitionTime });
+  doSceneUpdate({ sceneId, transitionTime, activated: true });
 };
 
 const applySceneCmd = async (sceneId, light, cmd) => {
@@ -151,7 +182,20 @@ const applySceneCmd = async (sceneId, light, cmd) => {
     );
   }
 
-  light.setState(cmd);
+  const { xyY, ct, rgb, hsv, ...options } = cmd;
+
+  let state = [0, 0, 0];
+  if (hsv) {
+    state = hsv;
+  } else if (xyY) {
+    state = convert['xyY']['hsv'].raw(xyY);
+  } else if (ct) {
+    state = convert['ct']['hsv'].raw(ct);
+  } else if (rgb) {
+    state = convert['rgb']['hsv'].raw(rgb);
+  }
+
+  light.setState(state, options);
 };
 
 const cycleScenes = ({ scenes }) => {

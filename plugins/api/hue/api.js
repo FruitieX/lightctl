@@ -12,9 +12,9 @@ const {
   activateScene,
   getScenes,
   getScene,
-  getSceneCmds,
+  getSceneLightCmds,
 } = require('../../../src/scenes');
-const { getColor } = require('./utils');
+const { getColor } = require('../../gateway/hue/utils');
 //const { rgbToXy } = require('../../../src/utils');
 
 const modifyConfig = (body, hueConfig) => {
@@ -51,8 +51,11 @@ const toHueLights = luminaires => {
       hueLight.name = luminaire.id + postfix;
       hueLight.uniqueid = luminaire.id + postfix;
 
-      const bri = light.getState('hsv').currentState[2];
-      const [x, y, Y] = light.getState('xyY').currentState;
+      // HSV gives us much better representation of Hue's "bri" parameter than xyY
+      const bri = luminaire.lights[0].getState().nextState[2];
+      const state = luminaire.lights[0].getState();
+
+      const [x, y, Y] = convert['hsv']['xyY'].raw(state.nextState);
 
       hueLight.state.xy = [x, y];
       hueLight.state.bri = Math.round(bri * 2.55);
@@ -82,6 +85,7 @@ const getSceneAppdata = sceneId => {
 const getHueScenes = () => {
   const scenes = { ...getScenes() };
 
+  /*
   Object.entries(scenes).forEach(([sceneId, scene]) => {
     scenes[sceneId] = {
       ...dummy.getScene(),
@@ -91,7 +95,7 @@ const getHueScenes = () => {
     // TODO: multisource
     scenes[sceneId].lights = [];
 
-    getSceneCmds(sceneId).forEach(({ luminaire }) => {
+    getSceneLightCmds(sceneId).forEach(({ luminaire }) => {
       const hueLights = toHueLights([luminaire]);
       Object.keys(hueLights).forEach(lightId =>
         scenes[sceneId].lights.push(lightId),
@@ -103,6 +107,7 @@ const getHueScenes = () => {
     // Scene list does not contain lightstates
     delete scenes[sceneId].lightstates;
   });
+  */
 
   return scenes;
 };
@@ -242,12 +247,13 @@ exports.initApi = async (server, hueConfig) => {
 
       const state = getColor(hueLight);
 
+      const options = {};
       // Transition time defaults to 400. Note that Hue transitiontime uses multiples of 100ms
-      state.transitionTime = Number.isInteger(req.payload.transitiontime)
+      options.transitionTime = Number.isInteger(req.payload.transitiontime)
         ? req.payload.transitiontime * 100
         : 400;
 
-      setLight(luminaireId, lightId, state);
+      setLight({ luminaireId, lightId, state, options });
 
       return dummy.setLightSuccess(req.params.lightId, req.payload);
     },

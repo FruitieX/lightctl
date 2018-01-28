@@ -52,7 +52,7 @@ const getGroup = groupId => {
   return result;
 };
 
-const setGroupState = ({ groupId, ...groupState }) => {
+const setGroupState = ({ groupId, state: nextState, options }) => {
   const group = getGroup(groupId);
 
   if (!group) return;
@@ -61,7 +61,7 @@ const setGroupState = ({ groupId, ...groupState }) => {
   state.set(['scenes', 'prev'], state.get(['scenes', 'active']));
   state.set(['scenes', 'active'], null);
 
-  group.forEach(luminaire => luminaire.setState(groupState));
+  group.forEach(luminaire => luminaire.setState(nextState, options));
 };
 
 module.exports = {
