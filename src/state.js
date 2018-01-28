@@ -8,6 +8,7 @@ const get = path => R.view(R.lensPath(path), state);
 const set = (path, value) => {
   const oldState = state;
   state = R.set(R.lensPath(path), value, state);
+  const subState = get(path);
 
   // Notify all subscribers at this and all parent levels
   while (path.length) {
@@ -15,7 +16,7 @@ const set = (path, value) => {
     changeEmitter.emit(path.toString(), state, oldState);
   }
 
-  return state;
+  return subState;
 };
 const subscribe = (path, f) => changeEmitter.on(path.toString(), f);
 
