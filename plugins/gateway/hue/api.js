@@ -9,6 +9,7 @@ const convert = require('color-convert');
 const request = require('request-promise-native');
 const { luminaireRegister } = require('../../../src/lights');
 const { getColor } = require('./utils');
+const state = require('../../../src/state');
 
 let lights = {};
 let groups = {};
@@ -30,12 +31,86 @@ const fromHueLights = hueLights => {
   return lights;
 };
 
+const xyDigits = 4;
+const xyRound = (xy, digits) => [
+  Number(xy[0].toFixed(digits)),
+  Number(xy[1].toFixed(digits)),
+];
+
+const xyDelta = 0.0075;
+const isInDelta = (oldXY, newXY, delta) =>
+  Math.sqrt((oldXY[0] - newXY[0]) ** 2 + (oldXY[1] - newXY[1]) ** 2) < delta;
+
+const toHueCmd = (state, prevState) => {
+  const hsv = state.nextState;
+
+  // xyY seems to work best in Hue (fastest response times), so we'll
+  // convert to that. Assume value component is 100 in hsv->xyY conversion.
+  const [x, y] = convert['hsv']['xyY'].raw([hsv[0], hsv[1], 100]);
+
+  const bri = Math.round(hsv[2] * 2.55);
+  const off = hsv[2] === 0;
+
+  // Hue transitiontime uses units of 0.1s
+  const transitiontime = Math.round(state.transitionTime / 100);
+
+  const cmd = {
+    body: {},
+  };
+
+  // Avoid sending transitiontime if it's either the Hue default of 400ms, or
+  // the hue-forwarder default of 500ms (which is maybe close enough to 400ms).
+  // This is an optimisation as any extra commands will cause extra load on the
+  // ZigBee network
+  if (transitiontime !== 4 && transitiontime !== 5) {
+    cmd.body.transitiontime = transitiontime;
+  }
+
+  if (off) {
+    // For whatever reason turning Hue bulbs off with a long transitiontime
+    // makes the transition "cut off" at the end, instantly turning off the bulb.
+    // Here's a workaround which first fades the light to brightness 0, and
+    // sets a transitionHack flag to the time when the light should receive an
+    // additional on=false command.
+    if (transitiontime > 5) {
+      cmd.body.bri = 0;
+      cmd.transitionHack = state.transitionTime;
+    } else {
+      cmd.body.on = false;
+    }
+  } else {
+    // Don't assume an off Hue bulb remembers its state
+    let useCache = prevState.on;
+
+    if (!prevState.on) {
+      cmd.body.on = true;
+    }
+    if (!useCache || prevState.bri !== bri) {
+      cmd.body.bri = bri;
+    }
+    if (!useCache || !isInDelta(prevState.xy, [x, y], xyDelta)) {
+      cmd.body.xy = xyRound([x, y], xyDigits);
+    }
+  }
+
+  // Did this command actually end up doing something?
+  if (
+    cmd.body.on === undefined &&
+    cmd.body.bri === undefined &&
+    cmd.body.xy === undefined
+  ) {
+    return null;
+  }
+
+  return cmd;
+};
+
 exports.initApi = async (server, hueConfig) => {
-  const makeRequest = fields => {
+  const makeRequest = async fields => {
     if (hueConfig.dummy) {
       return console.log('hue-gateway: Would make request:', fields);
     } else {
-      return request(fields);
+      return await request(fields);
     }
   };
 
@@ -133,6 +208,14 @@ exports.initApi = async (server, hueConfig) => {
   // Register all lights
   fromHueLights(lights).forEach(luminaireRegister);
 
+  const lightStates = {};
+
+  Object.entries(lights).forEach(([lightId, light]) => {
+    lightStates[lightId] = light.state;
+  });
+
+  state.set(['hue', 'lights'], lightStates);
+
   // TODO: wat do about these
   // server.event('getSensors');
   // server.event('getRules');
@@ -143,7 +226,7 @@ exports.initApi = async (server, hueConfig) => {
   //server.events.on('getSensors', promises => promises.push(sensors));
   //server.events.on('getRules', promises => promises.push(rules));
 
-  server.events.on('luminaireUpdate', luminaire => {
+  server.events.on('luminaireUpdate', async luminaire => {
     // Ignore non-Hue luminaires
     if (luminaire.gateway !== 'hue') {
       return;
@@ -159,50 +242,58 @@ exports.initApi = async (server, hueConfig) => {
     }
 
     const lightId = result[0];
-    // HSV gives us much better representation of Hue's "bri" parameter than xyY
-    const bri = luminaire.lights[0].getState().nextState[2];
-    const state = luminaire.lights[0].getState();
-    const body = {};
+    const light = luminaire.lights[0];
+    let prevState = state.get(['hue', 'lights', lightId]);
+    //console.log('prevState', prevState);
 
-    const [x, y, Y] = convert['hsv']['xyY'].raw(state.nextState);
+    // Get rid of possible existing transition hack timeout
+    clearTimeout(prevState.transitionHackTimeout);
 
-    if (Y === 0) {
-      // We assume brightness 0 is darkness (unlike Hue)
-      body.on = false;
-    } else {
-      // TODO: must cache many of these fields and prevent sending dupes
-      body.on = true;
+    const cmd = toHueCmd(light.getState(), prevState);
 
-      body.bri = Math.round(bri * 2.55);
-      body.xy = [x, y];
-
-      // Hue counts time as multiples of 100 ms...
-      body.transitiontime = Math.round(state.transitionTime / 100);
-
-      // 400 ms is the default, avoid sending it as an optimisation
-      if (body.transitiontime === 4) {
-        delete body.transitiontime;
-      }
-
-      // 500 ms is the default used in hue-forwarder, and perhaps close enough
-      // to 400 ms. Avoid sending as otherwise this will be sent a lot.
-      if (body.transitiontime === 5) {
-        delete body.transitiontime;
-      }
+    if (!cmd) {
+      // Nothing to send
+      return;
     }
 
-    //console.log('body:', body);
+    // Send delayed off command
+    if (cmd.transitionHack) {
+      const transitionHackTimeout = setTimeout(
+        () =>
+          makeRequest({
+            url: `http://${hueConfig.bridgeAddr}/api/${
+              hueConfig.username
+            }/lights/${lightId}/state`,
+            method: 'PUT',
+            body: { on: false },
+            json: true,
+            timeout: 1000,
+          }),
+        cmd.transitionHack,
+      );
+
+      prevState = state.set(['hue', 'lights', lightId], {
+        ...prevState,
+        transitionHackTimeout,
+      });
+    }
+
+    console.log('sending hue cmd', cmd.body);
 
     // Hue bulbs are represented by single-light luminaires
-    makeRequest({
+    await makeRequest({
       url: `http://${hueConfig.bridgeAddr}/api/${
         hueConfig.username
       }/lights/${lightId}/state`,
       method: 'PUT',
-      body,
+      body: cmd.body,
       json: true,
       timeout: 1000,
     });
-    //server.publish(`/luminaires/${luminaire.id}`, luminaire.lights);
+
+    state.set(['hue', 'lights', lightId], {
+      ...prevState,
+      ...cmd.body,
+    });
   });
 };

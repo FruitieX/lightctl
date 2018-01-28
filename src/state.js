@@ -14,6 +14,8 @@ const set = (path, value) => {
     path = R.init(path);
     changeEmitter.emit(path.toString(), state, oldState);
   }
+
+  return state;
 };
 const subscribe = (path, f) => changeEmitter.on(path.toString(), f);
 
