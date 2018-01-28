@@ -35,7 +35,7 @@ const sceneMiddleware = ({ lightCmds }) => {
 const setBrightness = server => ({
   value,
   delta,
-  transitionTime = 200,
+  transitionTime = 500,
   useExistingTransition = false,
 }) => {
   if (!isNaN(delta)) {
@@ -66,7 +66,7 @@ const fadeBrightness = server => ({ rate = 20, updateInterval = 1000 }) => {
   });
 };
 
-const daylightBrightness = (server, options) => () => {
+const daylightBrightness = (server, options) => initial => {
   // TODO: 0 is not allowed
   const startIncreaseHour = options.daylight.startIncreaseHour || 7;
   const increaseRate = options.daylight.increaseRate || 20;
@@ -79,6 +79,29 @@ const daylightBrightness = (server, options) => () => {
   const updateInterval = options.daylight.updateInterval || 60;
 
   const hour = new Date().getHours();
+
+  // Estimate for initial brightness
+  if (initial) {
+    if (hour < startIncreaseHour) {
+      // Midnight - early morning
+      brightness = min;
+    } else if (hour < startDecreaseHour) {
+      // Morning - evening
+      brightness = Math.min(
+        min + (hour - startIncreaseHour) * increaseRate,
+        max,
+      );
+    } else {
+      // Evening - midnight
+      brightness = Math.max(
+        max - (hour - startDecreaseHour) * decreaseRate,
+        min,
+      );
+    }
+    console.log('Set initial brightness:', brightness);
+    prevBrightness = brightness;
+    return;
+  }
 
   if (hour >= startIncreaseHour && hour < startDecreaseHour) {
     if (brightness >= max) {
@@ -118,6 +141,7 @@ const register = async function(server, options) {
     if (options.daylight) {
       const updateInterval = options.daylight.updateInterval || 60;
       setInterval(daylightBrightness(server, options), updateInterval * 1000);
+      daylightBrightness(server, options)(true);
     }
   });
 };
