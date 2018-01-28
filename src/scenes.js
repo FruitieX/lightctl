@@ -58,12 +58,7 @@ const modifyScene = ({
       newScene[luminaire.id][light.index] = cmd;
     });
 
-    console.log(
-      'scene',
-      JSON.stringify(state.get(['scenes', 'entries', sceneId])),
-    );
     state.set(['scenes', 'entries', sceneId], newScene);
-    console.log('newScene', JSON.stringify(newScene));
   }
 
   if (sceneId === getActiveSceneId()) {
