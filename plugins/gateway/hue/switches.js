@@ -82,6 +82,7 @@ const startPolling = async (server, hueConfig, switchSensorId) => {
 };
 
 // We only care about HOLD and SHORT_RELEASED states on on/off buttons
+// TODO: autodetect based on config?
 const BUTTON_STATES = {
   // ON_PRESSED: 1000,
   ON_HOLD: 1001,
@@ -98,9 +99,9 @@ const BUTTON_STATES = {
   DOWN_SHORT_RELEASED: 3002,
   DOWN_LONG_RELEASED: 3003,
 
-  // OFF_PRESSED: 4000,
-  OFF_HOLD: 4001,
-  OFF_SHORT_RELEASED: 4002,
+  OFF_PRESSED: 4000,
+  //OFF_HOLD: 4001,
+  //OFF_SHORT_RELEASED: 4002,
   // OFF_LONG_RELEASED: 4003,
 };
 
