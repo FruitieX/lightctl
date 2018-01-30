@@ -6,24 +6,20 @@ const convert = require('color-convert');
 const request = require('request-promise-native');
 const forEach = require('lodash/forEach');
 const uuidv4 = require('uuid/v4');
+const state = require('./state');
 
-let state = {
-  luminaires: [],
-  changesToDispatch: [],
-  willDispatch: false,
-};
 let server;
 
 const dispatchChanges = () => {
-  state.willDispatch = false;
+  state.set(['lights', 'willDispatch'], false);
   //console.log('dispatching changes:', JSON.stringify(state.changesToDispatch));
 
   // TODO: merge / get rid of potential duplicates?
-  state.changesToDispatch.forEach(luminaire =>
-    server.events.emit('luminaireUpdate', luminaire),
-  );
+  state
+    .get(['lights', 'changesToDispatch'])
+    .forEach(luminaire => server.events.emit('luminaireUpdate', luminaire));
 
-  state.changesToDispatch = [];
+  state.set(['lights', 'changesToDispatch'], []);
 };
 
 class Light {
@@ -105,12 +101,16 @@ class Light {
     this.transitionEnd = new Date().getTime() + (options.transitionTime || 500);
 
     // TODO: some form of diffing here?
-    if (!state.changesToDispatch.includes(this.parentLuminaire)) {
-      state.changesToDispatch.push(this.parentLuminaire);
+    const changesToDispatch = state.get(['lights', 'changesToDispatch']);
+    if (!changesToDispatch.includes(this.parentLuminaire)) {
+      state.set(
+        ['lights', 'changesToDispatch'],
+        [...changesToDispatch, this.parentLuminaire],
+      );
     }
 
-    if (!state.willDispatch) {
-      state.willDispatch = true;
+    if (!state.get(['lights', 'willDispatch'])) {
+      state.set(['lights', 'willDispatch'], true);
       process.nextTick(dispatchChanges);
     }
   }
@@ -136,7 +136,8 @@ class Luminaire {
 }
 
 const luminaireRegister = fields => {
-  if (state.luminaires.find(luminaire => luminaire.id === fields.id)) {
+  const luminaires = state.get(['lights', 'luminaires']);
+  if (luminaires.find(luminaire => luminaire.id === fields.id)) {
     return console.log('Error: luminaireRegister() with already existing id!');
   }
 
@@ -144,15 +145,15 @@ const luminaireRegister = fields => {
 
   const luminaire = new Luminaire(fields);
   console.log('created luminaire:', JSON.stringify(luminaire));
-  state.luminaires.push(luminaire);
+  state.set(['lights', 'luminaires'], [...luminaires, luminaire]);
 
   server.events.emit('luminaireDidRegister', luminaire);
 };
 
 const setLight = ({ luminaireId, lightId, state: nextState, options }) => {
-  const luminaire = state.luminaires.find(
-    luminaire => luminaire.id === luminaireId,
-  );
+  const luminaire = state
+    .get(['lights', 'luminaires'])
+    .find(luminaire => luminaire.id === luminaireId);
   if (!luminaire) {
     return console.log('Error: setLight() called with unknown luminaire id!');
   }
@@ -161,6 +162,10 @@ const setLight = ({ luminaireId, lightId, state: nextState, options }) => {
   if (!light) {
     return console.log('Error: setLight() called with unknown light id!');
   }
+
+  // Setting light state will reset active scene
+  state.set(['scenes', 'prev'], state.get(['scenes', 'active']));
+  state.set(['scenes', 'active'], null);
 
   console.log('setLight():', JSON.stringify(nextState));
   light.setState(nextState, options);
@@ -184,10 +189,12 @@ const setLight = ({ luminaireId, lightId, state: nextState, options }) => {
   */
 };
 
-const getLuminaires = () => state.luminaires;
+const getLuminaires = () => state.get(['lights', 'luminaires']);
 
 const getLuminaire = luminaireId =>
-  state.luminaires.find(luminaire => luminaire.id === luminaireId);
+  state
+    .get(['lights', 'luminaires'])
+    .find(luminaire => luminaire.id === luminaireId);
 
 const getLight = (luminaireId, lightId) => {
   const luminaire = getLuminaire(luminaireId);
@@ -198,6 +205,11 @@ const getLight = (luminaireId, lightId) => {
 };
 
 const register = async function(_server, options) {
+  state.set(['lights'], {
+    luminaires: [],
+    changesToDispatch: [],
+    willDispatch: false,
+  });
   server = _server;
   /*
   if (!server.config.hue.username) {
