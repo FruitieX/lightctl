@@ -1,4 +1,5 @@
 const convert = require('color-convert');
+const c0lor = require('c0lor');
 
 exports.black = [0, 0, 0];
 
@@ -20,10 +21,9 @@ exports.getColor = lamp => {
       lamp.state.bri / 254 * 100,
     );
   } else if (lamp.state.colormode === 'xy') {
-    lampColor = convert.xyY.hsv.raw(
-      ...lamp.state.xy,
-      lamp.state.bri / 254 * 100,
-    );
+    const hs = convert.xyY.hsv.raw(...lamp.state.xy, 1);
+
+    lampColor = [hs[0], hs[1], lamp.state.bri / 254 * 100];
   } else {
     lampColor = exports.black;
   }

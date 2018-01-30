@@ -4,6 +4,7 @@
  * Make & cache requests to the Hue API
  */
 
+const c0lor = require('c0lor');
 const convert = require('color-convert');
 const dummy = require('./dummy');
 const request = require('request-promise-native');
@@ -145,6 +146,7 @@ const getHueScene = sceneId => {
         index = 0;
       }
 
+      // TODO: outdated
       const [x, y] = cmdLuminaire.lights[index].getState('xyY').currentState;
       const bri = cmdLuminaire.lights[index].getState('hsv').currentState[2];
 
