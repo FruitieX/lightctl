@@ -52,13 +52,15 @@ const toHueLights = luminaires => {
       hueLight.uniqueid = luminaire.id + postfix;
 
       // HSV gives us much better representation of Hue's "bri" parameter than xyY
-      const bri = luminaire.lights[0].getState().nextState[2];
-      const state = luminaire.lights[0].getState();
+      const hsv = luminaire.lights[0].getState().currentState;
+      const [x, y] = convert['hsv']['xyY'].raw(hsv);
 
-      const [x, y, Y] = convert['hsv']['xyY'].raw(state.nextState);
+      //hueLight.state.colormode = 'hs';
+      //hueLight.state.hue = Math.round(hsv[0] / 360 * 65536);
+      //hueLight.state.sat = Math.round(hsv[1] / 100 * 254);
+      hueLight.state.bri = Math.round(hsv[2] / 100 * 254);
 
       hueLight.state.xy = [x, y];
-      hueLight.state.bri = Math.round(bri * 2.55);
 
       hueLights[hueLight.uniqueid] = hueLight;
     });
@@ -243,6 +245,10 @@ exports.initApi = async (server, hueConfig) => {
       } else if (req.payload.ct) {
         hueLight.state.ct = req.payload.ct;
         hueLight.state.colormode = 'ct';
+      } else if (req.payload.hue || req.payload.sat) {
+        hueLight.state.hue = req.payload.hue;
+        hueLight.state.sat = req.payload.sat;
+        hueLight.state.colormode = 'hs';
       }
 
       const state = getColor(hueLight);
