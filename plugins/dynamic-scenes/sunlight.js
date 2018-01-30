@@ -14,14 +14,14 @@ let scene = null;
 let colorTimeout = null;
 
 const night = 2000;
-const day = 4000;
+const day = 6000;
 
 // Missing hours will use night settings
 const timeMap = {
   7: 2200,
   8: 2500,
   9: 3000,
-  10: 3500,
+  10: 4500,
   11: day,
   12: day,
   13: day,
@@ -29,7 +29,7 @@ const timeMap = {
   15: day,
   16: day,
   17: day,
-  18: 3500,
+  18: 4500,
   19: 3000,
   20: 2500,
 };
