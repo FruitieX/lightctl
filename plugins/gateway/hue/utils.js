@@ -1,5 +1,4 @@
 const convert = require('color-convert');
-const c0lor = require('c0lor');
 
 exports.black = [0, 0, 0];
 

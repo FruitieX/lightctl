@@ -4,7 +4,6 @@
  * Make & cache requests to the Hue API
  */
 
-const c0lor = require('c0lor');
 const convert = require('color-convert');
 const dummy = require('./dummy');
 const request = require('request-promise-native');
