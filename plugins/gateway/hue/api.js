@@ -46,9 +46,18 @@ const toHueCmd = (state, prevState) => {
 
   // xyY seems to work best in Hue (fastest response times), so we'll
   // convert to that. Assume value component is 100 in hsv->xyY conversion.
-  const [x, y] = convert['hsv']['xyY'].raw([hsv[0], hsv[1], 100]);
+  //const [x, y] = convert['hsv']['xyY'].raw([hsv[0], hsv[1], 100]);
 
-  const bri = Math.round(hsv[2] * 2.55);
+  // Our h value is in [0, 360[, Hue uses [0, 65536[
+  const hue = Math.round(hsv[0] / 360 * 65536);
+
+  // Our s value is in [0, 100], Hue uses [0, 254]
+  const sat = Math.round(hsv[1] / 100 * 254);
+
+  // Our v value is in [0, 100], Hue uses [1, 254]
+  // (but seems to accept 0 just fine)
+  const bri = Math.round(hsv[2] / 100 * 254);
+
   const off = hsv[2] === 0;
 
   // Hue transitiontime uses units of 0.1s
@@ -94,19 +103,29 @@ const toHueCmd = (state, prevState) => {
     if (!prevState.on) {
       cmd.body.on = true;
     }
+    if (!useCache || prevState.hue !== hue) {
+      cmd.body.hue = hue;
+    }
+    if (!useCache || prevState.sat !== sat) {
+      cmd.body.sat = sat;
+    }
     if (!useCache || prevState.bri !== bri) {
       cmd.body.bri = bri;
     }
+    /*
     if (!useCache || !isInDelta(prevState.xy, [x, y], xyDelta)) {
       cmd.body.xy = xyRound([x, y], xyDigits);
     }
+    */
   }
 
   // Did this command actually end up doing something?
   if (
     cmd.body.on === undefined &&
-    cmd.body.bri === undefined &&
-    cmd.body.xy === undefined
+    cmd.body.hue === undefined &&
+    cmd.body.sat === undefined &&
+    cmd.body.bri === undefined
+    //cmd.body.xy === undefined
   ) {
     return null;
   }
