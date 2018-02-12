@@ -1,5 +1,16 @@
 /*
  * nightlight
+ *
+ * When scene with sceneId matching options.sceneId is activated, slowly fades
+ * lights one by one to the states as set by the scene.
+ *
+ * Options:
+ * - sceneId: Required, name of scene to take over
+ *
+ * Sample configuration:
+ *
+ * ./plugins/dynamic-scenes/nightlight:
+ *   sceneId: Nightlight
  */
 
 const forEach = require('lodash/forEach');

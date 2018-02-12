@@ -1,7 +1,7 @@
 /*
  * hue-api
  *
- * Make & cache requests to the Hue API
+ * Implement a fake Hue bridge by imitating its API.
  */
 
 const convert = require('color-convert');

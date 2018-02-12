@@ -1,3 +1,11 @@
+/*
+ * hue gateway
+ *
+ * Control Hue bulbs through the Hue gateway
+ *
+ * See sample-config.yaml for example configuration.
+ */
+
 const { initConfig } = require('./config');
 const { initApi } = require('./api');
 const { initSwitches } = require('./switches');

@@ -20,7 +20,7 @@ const getUsername = async options => {
         timeout: 1000,
         method: 'POST',
         body: {
-          devicetype: 'hue-forwarder',
+          devicetype: 'lightctl',
         },
         json: true,
       }))[0];
@@ -35,7 +35,7 @@ const getUsername = async options => {
 
   console.log('Your Hue Bridge username is:', username);
   console.log(
-    'Please copy-paste this into your Hue plugin config under variable "username" and then restart hue-forwarder.',
+    'Please copy-paste this into your Hue plugin config under variable "username" and then restart lightctl.',
   );
 
   return username;

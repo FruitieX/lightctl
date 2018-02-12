@@ -1,8 +1,27 @@
 /*
  * brightness
  *
+ * Adjusts the brightness of lights in the scene based on a brightness parameter.
  *
+ * If options.daylight is set, then the brightness parameter will increment /
+ * decrement periodically depending on the time of the day.
  *
+ * The brightness parameter can be set externally by calling setBrightness(),
+ * and it can be set directly to a value or modified with a delta. This allows
+ * for example light switches to dim/brighten lights.
+ *
+ * Sample configuration:
+ *
+ * plugins:
+ *  ./plugins/scene-middleware/brightness:
+ *    daylight:
+ *      startIncreaseHour: 7
+ *      increaseRate: 20
+ *      max: 100
+ *      startDecreaseHour: 19
+ *      decreaseRate: 15
+ *      min: 25
+ *      updateInterval: 60
  */
 
 let brightness = 100;

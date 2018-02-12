@@ -1,0 +1,92 @@
+plugins:
+  ./plugins/gateway/hue:
+    # IP address of your physical Hue bridge
+    bridgeAddr: 192.168.1.123
+
+    # You can generate the Hue username by running lightctl once without this
+    # parameter set
+    username: <Your Hue bridge username>
+
+    # Poll dimmer switches at this interval (ms)
+    switchPollDelay: 100
+
+    # Dimmer switch configuration
+    switches:
+     Living room:
+       ON_SHORT_RELEASED:
+         activateScene:
+           sceneId: Normal
+
+       ON_HOLD:
+         activateScene:
+           sceneId: Normal
+           transitionTime: 180000
+
+       UP_PRESSED:
+         setBrightness:
+           delta: 20
+
+       UP_SHORT_RELEASED:
+         setBrightness:
+           delta: 0
+
+       UP_LONG_RELEASED:
+         setBrightness:
+           delta: 0
+
+       DOWN_PRESSED:
+         setBrightness:
+           delta: -20
+
+       DOWN_SHORT_RELEASED:
+         setBrightness:
+           delta: 0
+
+       DOWN_LONG_RELEASED:
+         setBrightness:
+           delta: 0
+
+       OFF_PRESSED:
+         setGroupState:
+           groupId: All
+           state: [ 0, 0, 0 ]
+
+     Nightstand:
+       ON_SHORT_RELEASED:
+         cycleScenes:
+           scenes:
+             - Normal
+             - Dim
+
+       ON_HOLD:
+         activateScene:
+           sceneId: Normal
+           transitionTime: 180000
+
+       UP_PRESSED:
+         setBrightness:
+           delta: 20
+
+       UP_SHORT_RELEASED:
+         setBrightness:
+           delta: 0
+
+       UP_LONG_RELEASED:
+         setBrightness:
+           delta: 0
+
+       DOWN_PRESSED:
+         setBrightness:
+           delta: -20
+
+       DOWN_SHORT_RELEASED:
+         setBrightness:
+           delta: 0
+
+       DOWN_LONG_RELEASED:
+         setBrightness:
+           delta: 0
+
+       OFF_PRESSED:
+         activateScene:
+           sceneId: Nightlight

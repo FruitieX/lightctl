@@ -1,6 +1,6 @@
 const cosmiconfig = require('cosmiconfig');
 
-const explorer = cosmiconfig('hueforwarder');
+const explorer = cosmiconfig('lightctl');
 
 module.exports = explorer.load('.').then(result => {
   if (result === null) {

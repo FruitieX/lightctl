@@ -1,3 +1,31 @@
+/**
+ * scenes
+ *
+ * Scenes allow storing/restoring multiple light states at once. Scenes can
+ * be activated, cycled and modified on the fly by plugins. Plugins can make
+ * changes to a scene as often as needed - lightctl will make sure these
+ * changes are sent to the lights only when that scene is active.
+ *
+ * Furthermore, special plugins called scene middleware can make adjustments
+ * to the light state commands a scene is about to send without making changes
+ * to the scene itself. This allows for example global brightness control that
+ * is decoupled from the individual scenes and their state.
+ *
+ * Scenes can be configured using both luminaire names and group names.
+ * Light states support hsv, rgb, ct (color temperature) formats.
+ *
+ * Sample config:
+ *
+ * scenes:
+ *   MyScene:
+ *     Living room:
+ *       hsv: [ 50, 80, 100 ]
+ *     Kitchen ceiling lamp:
+ *       ct: [ 2500, 100 ]
+ *     Bedroom:
+ *       rgb: [ 200, 100, 0 ]
+ */
+
 const state = require('./state');
 const R = require('ramda');
 const { getGroup, groupExists } = require('./groups');

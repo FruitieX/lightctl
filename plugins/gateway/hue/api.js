@@ -1,9 +1,3 @@
-/*
- * hue-api
- *
- * Make & cache requests to the Hue API
- */
-
 const dummy = require('../../api/hue/dummy');
 const convert = require('color-convert');
 const request = require('request-promise-native');
@@ -68,7 +62,7 @@ const toHueCmd = (state, prevState) => {
   };
 
   // Avoid sending transitiontime if it's either the Hue default of 400ms, or
-  // the hue-forwarder default of 500ms (which is maybe close enough to 400ms).
+  // the lightctl default of 500ms (which is maybe close enough to 400ms).
   // This is an optimisation as any extra commands will cause extra load on the
   // ZigBee network
   if (transitiontime !== 4 && transitiontime !== 5) {

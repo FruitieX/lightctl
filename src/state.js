@@ -1,3 +1,5 @@
+// Neat (?) state management using utils from ramda.
+
 const EventEmitter = require('events');
 const R = require('ramda');
 

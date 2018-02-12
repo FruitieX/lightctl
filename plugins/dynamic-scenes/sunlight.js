@@ -1,9 +1,18 @@
 /*
  * sunlight
  *
- * When `options.sceneId` is active, simulates sunlight by varying brightness
- * and color temperature of all lights in the scene.
+ * When enabled, simulates sunlight by varying color temperature of all lights
+ * in the scene.
  *
+ * TODO: Don't take over scene, rather adjust the color temperature of lights.
+ *
+ * Options:
+ * - sceneId: Required, name of scene to take over
+ *
+ * Sample configuration:
+ *
+ * ./plugins/dynamic-scenes/sunlight:
+ *   sceneId: Normal
  */
 
 const R = require('ramda');

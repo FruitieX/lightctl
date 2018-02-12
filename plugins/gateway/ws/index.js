@@ -1,3 +1,17 @@
+/*
+ * ws
+ *
+ * WebSockets using the Hapi.js nes protocol.
+ *
+ * Allows clients to subscribe to /luminaires/{luminaireId} paths to get
+ * push updates for light state changes.
+ *
+ * Sample configuration:
+ *
+ * plugins:
+ *   ./plugins/gateway/ws:
+ */
+
 const Nes = require('nes');
 const {
   luminaireRegister,

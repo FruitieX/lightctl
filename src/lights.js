@@ -1,5 +1,21 @@
-/*
+/**
  * lights
+ *
+ * The lights plugin forms the core of lightctl, with lights being the
+ * main thing we control.
+ *
+ * Lights are split into two concepts, Light and Luminaire.
+ *
+ * Lights represent light sources such as a light bulb - something that emits
+ * light. Lights can be controlled individually.
+ *
+ * Luminaires represent physical light fixtures such as a desk lamp, and may
+ * contain multiple Lights. Most luminaires contain only one Light, but for
+ * example an individually addressable LED strip might contain hundreds of
+ * Lights.
+ *
+ * No configuration is necessary, as luminaires are auto-configured by gateway
+ * plugins.
  */
 
 const convert = require('color-convert');
@@ -8,8 +24,11 @@ const forEach = require('lodash/forEach');
 const uuidv4 = require('uuid/v4');
 const state = require('./state');
 
+// TODO: ugh
 let server;
 
+// When called, it will dispatch out any pending light state changes to the
+// respective gateway plugins.
 const dispatchChanges = () => {
   state.set(['lights', 'willDispatch'], false);
   //console.log('dispatching changes:', JSON.stringify(state.changesToDispatch));
@@ -84,6 +103,8 @@ class Light {
     return this.getState();
   }
 
+  // Method for updating light state.
+  // nextState is an array containing HSV values.
   setState(nextState, options = {}) {
     if (!nextState || !Array.isArray(nextState) || nextState.length !== 3) {
       console.log(
@@ -169,24 +190,6 @@ const setLight = ({ luminaireId, lightId, state: nextState, options }) => {
 
   console.log('setLight():', JSON.stringify(nextState));
   light.setState(nextState, options);
-
-  /*
-  //const light = lights[lightId];
-
-  //console.log('lights: sending lightstate updates to', lightId, needsUpdate);
-
-  lights.forEach(light => {
-    lightsCache[light.id] = {
-      ...lightsCache[light.id],
-      ...light,
-    };
-  });
-
-  if (!state.willDispatch) {
-    state.willDispatch = true;
-    process.nextTick(dispatchChanges);
-  }
-  */
 };
 
 const getLuminaires = () => state.get(['lights', 'luminaires']);
@@ -211,20 +214,10 @@ const register = async function(_server, options) {
     willDispatch: false,
   });
   server = _server;
-  /*
-  if (!server.config.hue.username) {
-    throw 'lights: USERNAME env var not supplied, aborting...';
-  }
-  */
 
   server.events.on('start', async () => {
-    // TODO: light discovery (plugins should do this, and we should support updates)
-    /*
-    // Discover existing lights
-    lights = await server.emitAwait('getLights');
-    */
     server.events.on('setLight', setLight);
-    //server.events.on('getLights', getLights);
+    // server.events.on('getLights', getLights);
     // server.events.on('lightChanged', lightChanged);
   });
 

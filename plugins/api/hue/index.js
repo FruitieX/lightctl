@@ -1,3 +1,14 @@
+/*
+ * Hue API
+ *
+ * Support Hue apps by exposing lightctl as a fake Hue bridge
+ *
+ * Sample configuration:
+ *
+ * ./plugins/api/hue:
+ *   forwarderName: lightctl
+ */
+
 const { initConfig } = require('./config');
 const { initSSDPServer } = require('./ssdp');
 const { initApi } = require('./api');

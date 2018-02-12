@@ -1,3 +1,22 @@
+/**
+ * groups
+ *
+ * Groups allow grouping together luminaires to form for example rooms of a house,
+ * or even grouping together only some of the luminaires in a room. Luminaires can be
+ * part of many groups at once. Groups can then be controlled as one unit,
+ * with each luminaire in the group receiving the same commands.
+ *
+ * Sample configuration:
+ *
+ * groups:
+ *   Living room:
+ *     - IKEA lamp
+ *     - Old lamp
+ *     - Fancy lamp
+ *   Bedroom:
+ *     - Nightstand
+ */
+
 const state = require('./state');
 
 const register = async (server, groups) => {

@@ -1,7 +1,7 @@
 /*
  * ssdp-discovery
  *
- * Allows hue-forwarder to be discovered by Hue apps.
+ * Allows lightctl to be discovered by Hue apps.
  */
 
 const SsdpServer = require('node-ssdp').Server;
