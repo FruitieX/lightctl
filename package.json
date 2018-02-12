@@ -5,7 +5,7 @@
   },
   "dependencies": {
     "@types/request-promise-native": "^1.0.9",
-    "color-convert": "^1.9.1",
+    "color-convert": "https://github.com/FruitieX/color-convert",
     "cosmiconfig": "^3.1.0",
     "hapi": "^17.0.0",
     "lodash": "^4.17.4",
