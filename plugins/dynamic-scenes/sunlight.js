@@ -34,15 +34,26 @@ const timeMap = {
   20: 2500,
 };
 
+//const initTime = new Date().getTime() / 1000 - 40;
 const setColors = (server, options) => {
   const hour = new Date().getHours();
+  const minute = new Date().getMinutes();
+
+  // Useful for debugging
+  /*
+  const t = new Date().getTime() / 1000;
+  const hour = Math.floor((t - initTime) / 60) + 20;
+  const minute = Math.floor((t - initTime) % 60);
+  */
+
   const prevCt = timeMap[hour] || night;
   const nextCt = timeMap[(hour + 1) % 24] || night;
 
-  const weight = new Date().getMinutes() / 60;
+  const weight = minute / 60;
 
   // Interpolate between prevCt and nextCt
   const ct = Math.round((1 - weight) * prevCt + weight * nextCt);
+  //console.log(hour, minute, weight, prevCt, nextCt, ct);
 
   scene = state.get(['scenes', 'entries', options.sceneId]);
 
@@ -51,7 +62,7 @@ const setColors = (server, options) => {
   modifyScene({
     sceneId: options.sceneId,
     scene,
-    transitionTime: options.delayMS / 100,
+    transitionTime: options.delayMs,
   });
 };
 
