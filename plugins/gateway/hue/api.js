@@ -127,6 +127,23 @@ const toHueCmd = (state, prevState) => {
   return cmd;
 };
 
+const refreshLights = (hueConfig) => async () => {
+  lights = await request({
+    url: `http://${hueConfig.bridgeAddr}/api/${hueConfig.username}/lights`,
+    timeout: 1000,
+    json: true,
+  });
+  console.log('hue-api: cached existing lights');
+
+  const lightStates = {};
+
+  Object.entries(lights).forEach(([lightId, light]) => {
+    lightStates[lightId] = light.state;
+  });
+
+  state.set(['hue', 'lights'], lightStates);
+};
+
 exports.initApi = async (server, hueConfig) => {
   const makeRequest = async fields => {
     if (hueConfig.dummy) {
@@ -257,6 +274,8 @@ exports.initApi = async (server, hueConfig) => {
   });
 
   state.set(['hue', 'lights'], lightStates);
+
+  setInterval(refreshLights(hueConfig), 10000);
 
   // TODO: wat do about these
   // server.event('getSensors');
