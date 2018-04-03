@@ -44,7 +44,7 @@ const dispatchChanges = () => {
 class Light {
   constructor(
     parentLuminaire,
-    initialState = [0, 0, 255], // White in HSV
+    initialState = [0, 0, 100], // White in HSV
     index = 0,
     uuid = uuidv4(),
   ) {
@@ -74,11 +74,15 @@ class Light {
       );
     }
 
-    const currentState = this.state.map((value, index) => {
-      const prevValue = this.prevState[index];
+    const prevRgb = convert.hsv.rgb.raw(this.prevState);
+    const nextRgb = convert.hsv.rgb.raw(this.state);
+    const currentRgb = nextRgb.map((value, index) => {
+      const prevValue = prevRgb[index];
 
       return prevValue * (1 - q) + value * q;
     });
+
+    const currentState = convert.rgb.hsv.raw(currentRgb);
 
     return {
       prevState: this.prevState,
