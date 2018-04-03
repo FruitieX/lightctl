@@ -149,14 +149,18 @@ const getSceneLightCmds = (sceneId, unmodified = false) => {
       const group = getGroup(cmdGroup);
       group.forEach((luminaire, index) => {
         // For each luminaire in the group
-        const luminaireLightCmds = getLightCmdsForLuminaire(luminaire, cmds);
-        lightCmds.push(...luminaireLightCmds);
+        if (luminaire) {
+          const luminaireLightCmds = getLightCmdsForLuminaire(luminaire, cmds);
+          lightCmds.push(...luminaireLightCmds);
+        }
       });
     } else {
       const luminaire = getLuminaire(cmdGroup);
 
-      const luminaireLightCmds = getLightCmdsForLuminaire(luminaire, cmds);
-      lightCmds.push(...luminaireLightCmds);
+      if (luminaire) {
+        const luminaireLightCmds = getLightCmdsForLuminaire(luminaire, cmds);
+        lightCmds.push(...luminaireLightCmds);
+      }
     }
   });
 
@@ -171,6 +175,11 @@ const doSceneUpdate = async ({
   skipMiddleware = false,
 } = {}) => {
   let lightCmds = getSceneLightCmds(sceneId);
+
+    //console.log(lightCmds);
+
+  // TODO: why is shit undefined
+  lightCmds = lightCmds.filter(lightCmd => !!lightCmd.cmd);
 
   // Let scene middleware modify a deep clone of cmd
   lightCmds = lightCmds.map(lightCmd => ({
