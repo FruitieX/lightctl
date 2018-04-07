@@ -24,20 +24,52 @@ const {
 const clients = [];
 
 const send = client => () => {
-  const array = new Uint8Array(client.luminaire.lights.length * 3 + 1); // + 1 is dither flag
+  const array = new Uint8Array(client.luminaire.lights.length * 3 + 7); // + 1 is dither flag, + 3 are rgb gamma correction values, + 3 is for contrast
 
   client.luminaire.lights.forEach((light, index) => {
     const currentState = [...light.getState().currentState];
 
     const rgb = convert.hsv.rgb.raw(currentState);
 
-    const val = (Math.sin(new Date().getTime() / 500 + index) + 1) / 2;
-    array[index * 3 + 0] = rgb[0] * val;
-    array[index * 3 + 1] = rgb[1] * val;
-    array[index * 3 + 2] = rgb[2] * val;
+    const val = (Math.sin(new Date().getTime() / 1000 + index) + 1) / 2;
+    //const val = 1;
+
+    const r = rgb[0] * val;
+    const g = rgb[1] * val;
+    const b = rgb[2] * val;
+
+    let r_ = Math.floor(r);
+    let g_ = Math.floor(g);
+    let b_ = Math.floor(b);
+
+    /*
+    if (r_) {
+      if (g > 0.5 && !g_) g_ = 1;
+      if (b > 0.5 && !b_) b_ = 1;
+    }
+    if (g_) {
+      if (r > 0.5 && !r_) r_ = 1;
+      if (b > 0.5 && !b_) b_ = 1;
+    }
+    if (b_) {
+      if (r > 0.5 && !r_) r_ = 1;
+      if (g > 0.5 && !g_) g_ = 1;
+    }
+    */
+
+    array[index * 3 + 0] = r_; //r_;
+    array[index * 3 + 1] = g_; //g_;
+    array[index * 3 + 2] = b_; //b_;
   });
 
-  array[client.luminaire.lights.length * 3] = 8; // enable dithering with 8 steps
+  array[client.luminaire.lights.length * 3] = 4; // enable dithering with 4 steps
+
+  array[client.luminaire.lights.length * 3 + 1] = client.gammaCorrection[0]; // red gamma correction
+  array[client.luminaire.lights.length * 3 + 2] = client.gammaCorrection[1]; // green gamma correction
+  array[client.luminaire.lights.length * 3 + 3] = client.gammaCorrection[2]; // blue gamma correction
+  array[client.luminaire.lights.length * 3 + 4] = client.contrast[0]; // red contrast
+  array[client.luminaire.lights.length * 3 + 5] = client.contrast[1]; // green contrast
+  array[client.luminaire.lights.length * 3 + 6] = client.contrast[2]; // blue contrast
 
   udpServer.send(array, 0, array.length, client.port, client.address);
 };
@@ -45,7 +77,9 @@ const send = client => () => {
 const removeClient = client => {
   clearInterval(client.interval);
   const index = clients.findIndex(
-    existingClient => existingClient.address === client.address && existingClient.port === client.port,
+    existingClient =>
+      existingClient.address === client.address &&
+      existingClient.port === client.port,
   );
 
   console.log('removing idle client', client.id);
@@ -63,6 +97,9 @@ const setClientTimeout = client => {
 };
 
 const register = async function(server, options) {
+  const gammaCorrection = options.gammaCorrection || {};
+  const contrast = options.contrast || {};
+
   udpServer.on('message', (msg, rinfo) => {
     const existingClient = clients.find(
       client => client.address === rinfo.address && client.port === rinfo.port,
@@ -83,6 +120,8 @@ const register = async function(server, options) {
       console.log('lightctl-udp', json, 'registered.');
 
       client.id = json.id;
+      client.gammaCorrection = gammaCorrection[client.id] || [220, 250, 180];
+      client.contrast = contrast[client.id] || [255, 255, 255];
 
       luminaireRegister({
         ...json,
