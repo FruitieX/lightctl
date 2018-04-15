@@ -123,7 +123,9 @@ class Light {
     this.state = nextState;
 
     this.transitionStart = new Date().getTime();
-    this.transitionEnd = new Date().getTime() + (options.transitionTime || 500);
+    this.transitionEnd =
+      new Date().getTime() +
+      (Number.isInteger(options.transitionTime) ? options.transitionTime : 500);
 
     // TODO: some form of diffing here?
     const changesToDispatch = state.get(['lights', 'changesToDispatch']);
