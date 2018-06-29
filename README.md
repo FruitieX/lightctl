@@ -1,5 +1,9 @@
 # lightctl
 
+## Note
+
+Check out https://github.com/FruitieX/lightctl-koa for a rewritten version using TypeScript and Koa.
+
 ## Motivation
 
 Home automation lighting systems are not as open as they could be, even if that
